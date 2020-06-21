@@ -6,31 +6,17 @@
 
 #include "stochastic.hpp"
 #include "utils.hpp"
+#include "operators.hpp"
 
 using namespace SymEngine;
+using namespace SymEngine::OverloadedOperators;
 using namespace std;
 using namespace stochastic;
 
-bool eq(const vec_basic &a, const vec_basic &b){
-  if (a.size() != b.size())
-    return false;
 
-  for (size_t i = 0; i < a.size(); i++)
-    if (not eq(*a[i],*b[i]))
-      return false;
 
-  return true;
-}
 
-bool even(const Integer &i){
-  static RCP<const Integer> two{integer(2)};
-  return mod(i,*two)->is_zero();
-}
-
-RCP<const Integer> operator""_i(unsigned long long i) {return integer(i);}
-
-// TODO: Currently we only test the case with one variable
-
+//    TODO: Currently we only test the case with one variable
 void test_StochasticProcess(){
   RCP<const Basic> b{symbol("γ")};
   StochasticProcess u{"u", [b](const vec_basic& args, const RCP<const Integer> &n) -> RCP<const Basic> {
@@ -91,42 +77,100 @@ void test_get_addtuple(){
   cout << "test_get_addtuple [OK]" << endl;
 }
 
-void test_split_independents(){
+
+void test_ExptectOperator_and_EquationSet(){
+  // u is independent of v but v is not independent of w. w and u are independent.
+
   ExpectedOperator E{[](const FunctionSymbol& x, const FunctionSymbol& y){
                        auto xy = [](const FunctionSymbol &x, const FunctionSymbol &y)
                                  {
-                                   if (x.get_name() == "v")
+                                   auto xname{x.get_name()};
+                                   auto yname{y.get_name()};
+
+                                   if (xname == "u" and yname == "v")
                                      return true;
-                                   if (x.get_name() == "u" and y.get_name() == "u")
-                                     return not eq(x,y);
+
+                                   if (xname == "w" and yname == "u")
+                                     return true;
 
                                    return false;
                                  };
                        return xy(x,y) or xy(y,x);
                      }};
-  StochasticProcess u{"u", [](const vec_basic&, const RCP<const Integer>& n){
-                             static const auto gamma{symbol("γ")};
+
+  const auto gamma{symbol("γ")}, sigma{symbol("σ")}, alpha{symbol("α")};
+  StochasticProcess u{"u", [&gamma](const vec_basic&, const RCP<const Integer>& n){
                              return pow(gamma, n);
                            }};
   StochasticProcess v{"v", [](const vec_basic&, const RCP<const Integer>&){
                              return zero;
                            }};
+  StochasticProcess w{"w", [&](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic> {
+                             if (even(*n))
+                               return zero;
+
+                             return pow(sigma, n);
+                           }};
   auto k = symbol("k");
-  auto uk{u(k)}, vk{v(k)};
-  RCP<const Basic> expr1 = vk;
+  auto uk{u(k)}, vk{v(k)}, wk(w(k));
+
+  // Testing if E[u(k) + u(k)**2 + v(k) + alpha] = gamma + gamma**2 + alpha
+  RCP<const Basic> expr1 = add(vk, alpha);
   expr1 = add(expr1,pow(uk,2_i));
   expr1  = add(expr1, uk);
   auto e1  = rcp_dynamic_cast<const FunctionSymbol>(E(expr1));
 
-  cout << *e1 << endl;
-  cout << *E.expand(e1) << endl;
+  RCP<const Basic> r1{pow(gamma,2_i)};
+  r1 = add(r1, gamma);
+  r1 = add(r1, alpha);
+  assert(eq(*E.expand(e1),*r1));
+
+  // Testing if E[alpha*u(k)**2v(k)w(k)] = alpha*u(k)**2E[v(k)w(k)] = alpha*gammma**2*E[v(k)*w(k)]
+  RCP<const Basic> expr2{mul({pow(uk,2_i), vk, wk, alpha})};
+  auto e2 = rcp_dynamic_cast<const FunctionSymbol>(E(expr2));
+  auto r2{mul(pow(gamma,2_i),alpha)};
+  r2 = mul(r2, E(mul(vk,wk)));
+  assert(eq(*E.expand(e2), *r2));
+  cout << "test_ExptectOperator [OK]" << endl;
+
+  auto mulexpr = mul({pow(u(k), 4_i),
+                      pow(u(add(k,1_i)), 2_i),
+                      pow(v(add(k, 2_i)), 2_i)
+    });
+
+  auto mulexpr_res = mul({pow(u(sub(k, 2_i)), 4_i),
+                      pow(u(sub(k,one)), 2_i),
+                      pow(v(k), 2_i)
+    });
+
+  auto gcvf = get_cnt_var_func(rcp_dynamic_cast<const FunctionSymbol>(E(mulexpr)));
+  assert(eq(*gcvf.first, *2_i));
+  assert(eq(*gcvf.second, *k));
+
+  cout << "test get_cnt_var_func [OK]" << endl;
+
+  RCP<const Basic> lhsb = pow(u(k), 2_i) * pow(u(k - one), 4_i) * pow(w(k + one), 2_i);
+  RCP<const Basic> lhsb2 = pow(u(k), 4_i) * pow(u(k + one), 2_i) * pow(w(k + 2_i), 2_i);
+  auto lhs = rcp_dynamic_cast<const FunctionSymbol>(E(lhsb));
+  auto lhs2 = rcp_dynamic_cast<const FunctionSymbol>(E(lhsb2));
+
+  RCP<const Basic> rhs = pow(gamma, 2_i)*E(u(k)*w(k)) + E(pow(u(k - 1_i),2_i)*w(k));
+
+  EquationSet eqs(k);
+  eqs.setitem(lhs, rhs);
+
+  auto res = pow(gamma, 2_i)*E(u(k + 1_i)*w(k + 1_i)) + E(pow(u(k),2_i)*w(k + 1_i));
+  assert(eq(*eqs.getitem(lhs2), *res));
+
+  cout << "EquationSet [OK]" << endl;
 }
+
 
 int main() {
 
   test_StochasticProcess();
   test_get_multuple();
   test_get_addtuple();
-  test_split_independents();
+  test_ExptectOperator_and_EquationSet();
   return 0;
 }

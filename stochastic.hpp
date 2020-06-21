@@ -45,10 +45,10 @@ namespace stochastic{
     unordered_map<size_t, RCP<const Basic>> eqs_;
     RCP<const Basic> var_;
   public:
-    EquationSet(RCP<const Basic> &var);
-    RCP<const Basic> getitem(const Basic &lhs) const;
-    RCP<const Basic> setitem(const Basic &lhs, const Basic &rhs) const;
-    size_t len() const;
+    EquationSet(const RCP<const Basic> &var);
+    RCP<const Basic> getitem(const RCP<const FunctionSymbol> &lhs);
+    void setitem(const RCP<const FunctionSymbol> &lhs,const RCP<const Basic> &rhs);
+    size_t size() const;
   };
 
 }

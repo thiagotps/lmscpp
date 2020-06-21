@@ -1,6 +1,7 @@
 #include "stochastic.hpp"
 #include "utils.hpp"
 #include <symengine/basic-inl.h>
+#include <symengine/subs.h>
 
 #include <numeric>
 
@@ -85,7 +86,7 @@ namespace stochastic{
         bool ind = true;
         for (auto &y : rvs)
           {
-            if (x != y and not is_independent(dynamic_cast<const FunctionSymbol&>(*x),dynamic_cast<const FunctionSymbol&>(*y)))
+            if (x != y and not is_independent(*x,*y))
               {
                 not_ind = mul(not_ind, x);
                 ind = false;
@@ -124,7 +125,7 @@ namespace stochastic{
       for (auto &t : split_independents(not_cnts))
         e.emplace_back((*this)(t));
 
-      auto mul_e = reduce(begin(e), end(e), rcp_dynamic_cast<const Basic>(one), [](auto &a1, auto &a2)
+      auto mul_e = reduce(begin(e), end(e), rcp_static_cast<const Basic>(one), [](auto &a1, auto &a2)
                                                         {
                                                           return mul(a1,a2);
                                                         });
@@ -134,5 +135,21 @@ namespace stochastic{
 
     return s;
   }
+
+  EquationSet::EquationSet(const RCP<const Basic> &var): var_{var}, eqs_{} {};
+
+  RCP<const Basic> EquationSet::getitem(const RCP<const FunctionSymbol> &lhs)
+  {
+    auto [canon_lhs, cnt] = canonical_form(lhs);
+    return xreplace(eqs_[canon_lhs->hash()], {{var_, add(var_, cnt)}});
+  }
+
+  void EquationSet::setitem(const RCP<const FunctionSymbol> &lhs,const RCP<const Basic> &rhs)
+  {
+    auto [canon_lhs, cnt] = canonical_form(lhs);
+    auto x_rhs = xreplace(rhs, {{var_, sub(var_, cnt)}});
+    eqs_[canon_lhs->hash()] = x_rhs;
+  }
+  size_t EquationSet::size() const {return eqs_.size();}
 
 }

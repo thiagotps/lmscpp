@@ -1,6 +1,7 @@
 #include "utils.hpp"
 #include <symengine/number.h>
 #include <symengine/basic-inl.h>
+#include <symengine/subs.h>
 
 namespace stochastic{
   tuple<RCP<const Basic>, RCP<const Basic>> get_base_exp(const RCP<const Basic> &symbol_or_pow){
@@ -36,4 +37,55 @@ namespace stochastic{
 
     return addtuple;
   }
+
+  pair<RCP<const Number>, RCP<const Basic>> max_cnt_var(const vec_basic &v){
+    pair<RCP<const Number>, RCP<const Basic>> coef{NegInf,NegInf};
+
+    for (auto & rv: v){
+      auto [b,n] = get_base_exp(rv);
+      auto cp = get_addtuple(b->get_args()[0]);
+
+      auto cpn = rcp_dynamic_cast<const Number>(cp[0]);
+      if (cpn->sub(*coef.first)->is_positive()){
+        coef.first = cpn;
+        coef.second = cp[1];
+      }
+    }
+
+    return coef;
+  }
+
+  pair<RCP<const Number>, RCP<const Basic>>
+  get_cnt_var_func(const RCP<const FunctionSymbol> &expr){
+    auto rvvec = get_multuple(expr->get_args()[0]);
+    rvvec.erase(begin(rvvec));
+
+    return max_cnt_var(rvvec);
+  }
+
+  pair<RCP<const Basic>, RCP<const Number>>
+  canonical_form(const RCP<const FunctionSymbol>& expr)
+  {
+    auto [cnt, var] = get_cnt_var_func(expr);
+    return {xreplace(expr, {{var, sub(var,cnt)}}), cnt};
+  }
+
+  bool eq(const vec_basic &a, const vec_basic &b){
+    if (a.size() != b.size())
+      return false;
+
+    for (size_t i = 0; i < a.size(); i++)
+      if (not eq(*a[i],*b[i]))
+        return false;
+
+    return true;
+  }
+
+  bool even(const Integer &i){
+    static RCP<const Integer> two{integer(2)};
+    return mod(i,*two)->is_zero();
+  }
+
+  RCP<const Integer> operator""_i(unsigned long long i) {return integer(i);}
+
 }

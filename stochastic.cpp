@@ -138,10 +138,10 @@ namespace stochastic{
 
   EquationSet::EquationSet(const RCP<const Basic> &var): var_{var}, eqs_{} {};
 
-  RCP<const Basic> EquationSet::getitem(const RCP<const FunctionSymbol> &lhs)
+  RCP<const Basic> EquationSet::getitem(const RCP<const FunctionSymbol> &lhs) const
   {
     auto [canon_lhs, cnt] = canonical_form(lhs);
-    return xreplace(eqs_[canon_lhs->hash()], {{var_, add(var_, cnt)}});
+    return xreplace(eqs_.at(canon_lhs->hash()), {{var_, add(var_, cnt)}});
   }
 
   void EquationSet::setitem(const RCP<const FunctionSymbol> &lhs,const RCP<const Basic> &rhs)
@@ -152,4 +152,41 @@ namespace stochastic{
   }
   size_t EquationSet::size() const {return eqs_.size();}
 
+  bool EquationSet::contains(const RCP<const FunctionSymbol> & key) const
+  {
+    auto [canon, cnt] = canonical_form(key);
+    return eqs_.find(canon->hash()) != eqs_.end();
+  }
+
+  RCP<const Basic> expand(const RCP<const Mul>& expr, const EquationSet & eqs)
+  {
+    auto ml{get_multuple(expr)};
+    RCP<const Basic> result{ml[0]};
+
+    for (const auto & x : prefix(ml, 1))
+      {
+        auto [b, n] = get_base_exp(x);
+        if (is_a<FunctionSymbol>(*b))
+          if (auto bf =  rcp_static_cast<const FunctionSymbol>(b); eqs.contains(bf))
+            {
+              result = mul(result, expand(pow(eqs.getitem(bf), n)));
+              continue;
+            }
+
+        result = mul(result, x);
+      }
+
+    return result;
+  }
+  // size_t coumpute_eqs(const vec_func & seed, const EquationSet& inieqs, const ExpectedOperator & E)
+  // {
+  //   EquationSet eqs{inieqs.get_var()};
+  //   list<RCP<const Basic>> s{seed.begin(), seed.end()};
+  //   while (not s.empty())
+  //     {
+  //       auto t = s.pop_front();
+  //       if ()
+  //     }
+  //   return s.size();
+  // }
 }

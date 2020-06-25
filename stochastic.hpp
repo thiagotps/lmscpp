@@ -8,6 +8,7 @@
 #include <initializer_list>
 #include <cstdint>
 #include <string>
+#include "utils.hpp"
 
 namespace stochastic{
   using namespace std;
@@ -46,11 +47,16 @@ namespace stochastic{
     RCP<const Basic> var_;
   public:
     EquationSet(const RCP<const Basic> &var);
-    RCP<const Basic> getitem(const RCP<const FunctionSymbol> &lhs);
+    RCP<const Basic> getitem(const RCP<const FunctionSymbol> &lhs) const;
     void setitem(const RCP<const FunctionSymbol> &lhs,const RCP<const Basic> &rhs);
     size_t size() const;
+
+    auto get_var() const {return var_;};
+    bool contains(const RCP<const FunctionSymbol> & key) const;
   };
 
+  size_t coumpute_eqs(const vec_func &, const EquationSet&, const ExpectedOperator &);
+  RCP<const Basic> expand(const RCP<const Mul>&, const EquationSet &);
 }
 
 

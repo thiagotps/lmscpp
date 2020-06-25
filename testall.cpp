@@ -81,7 +81,7 @@ void test_get_addtuple(){
 void test_ExptectOperator_and_EquationSet(){
   // u is independent of v but v is not independent of w. w and u are independent.
 
-  ExpectedOperator E{[](const FunctionSymbol& x, const FunctionSymbol& y){
+  const ExpectedOperator E{[](const FunctionSymbol& x, const FunctionSymbol& y){
                        auto xy = [](const FunctionSymbol &x, const FunctionSymbol &y)
                                  {
                                    auto xname{x.get_name()};
@@ -125,7 +125,7 @@ void test_ExptectOperator_and_EquationSet(){
   r1 = add(r1, alpha);
   assert(eq(*E.expand(e1),*r1));
 
-  // Testing if E[alpha*u(k)**2v(k)w(k)] = alpha*u(k)**2E[v(k)w(k)] = alpha*gammma**2*E[v(k)*w(k)]
+  // Testing if E[alpha*u(k)**2v(k)w(k)] = alpha*E[u(k)**2]E[v(k)w(k)] = alpha*gammma**2*E[v(k)*w(k)]
   RCP<const Basic> expr2{mul({pow(uk,2_i), vk, wk, alpha})};
   auto e2 = rcp_dynamic_cast<const FunctionSymbol>(E(expr2));
   auto r2{mul(pow(gamma,2_i),alpha)};
@@ -163,6 +163,44 @@ void test_ExptectOperator_and_EquationSet(){
   assert(eq(*eqs.getitem(lhs2), *res));
 
   cout << "EquationSet [OK]" << endl;
+
+  auto t1 = E(v(k) * w(k));
+  auto t2 = E(pow(v(k), 2_i) * w(k));
+  auto t3 = E(pow(v(k), 3_i) * w(k));
+
+  auto stv = states_vars(alpha*t1 + 2_i*pow(sigma, 10_i)*t2*t3);
+  assert(eq(*stv[0], *t3));
+  assert(eq(*stv[1], *t2));
+  assert(eq(*stv[2], *t1));
+
+  cout << "state_vars [OK]" << endl;
+}
+
+const auto SYMALPHA{symbol("α")}, SYMBETA{symbol("β")};
+
+void test_expand()
+{
+  auto x = [](const auto & k) {return make_rcp<const FunctionSymbol>("x", k); };
+  auto y = [](const auto & k) {return make_rcp<const FunctionSymbol>("y", k); };
+
+  const auto k{symbol("k")};
+
+  EquationSet eqs(k);
+
+
+  // x(k + 1) = αx(k) + 10
+  eqs.setitem(x(k + 1_i) , SYMALPHA * x(k) + 10_i);
+  // y(k + 1) = 2βy(k)**2
+  eqs.setitem(y(k + 1_i), 2_i * SYMBETA * pow(y(k), 2_i));
+  // 2*x(k)*y(k+2)**2
+  auto expr  = rcp_dynamic_cast<const Mul>(2_i * x(k) * pow(y(k + 2_i), 2_i));
+  // The expected result is 8β**2 * y(k + 1)**4 * ( αx(k - 1) + 10)
+  auto expected_res = 8_i * pow(SYMBETA, 2_i) * pow(y(k + 1_i), 4_i) * (SYMALPHA * x(k - 1_i) + 10_i);
+  // What we really get
+  auto res = expand(expr, eqs);
+  assert(eq(*res, *expected_res));
+
+  cout << "test_expand[OK]" << endl;
 }
 
 
@@ -172,5 +210,6 @@ int main() {
   test_get_multuple();
   test_get_addtuple();
   test_ExptectOperator_and_EquationSet();
+  test_expand();
   return 0;
 }

@@ -4,6 +4,19 @@
 #include <symengine/subs.h>
 
 namespace stochastic{
+  inline RCP<const FunctionSymbol>
+  get_if_expected(const RCP<const Basic> &b)
+  {
+    if (is_a<FunctionSymbol>(*b))
+      {
+        auto ptr =  rcp_static_cast<const FunctionSymbol>(b);
+        if (ptr->get_name() == "E")
+          return ptr;
+      }
+
+    return null;
+  }
+
   tuple<RCP<const Basic>, RCP<const Basic>> get_base_exp(const RCP<const Basic> &symbol_or_pow){
     if (is_a<const Pow>(*symbol_or_pow)){
       auto p = rcp_static_cast<const Pow>(symbol_or_pow);
@@ -56,8 +69,11 @@ namespace stochastic{
   }
 
   pair<RCP<const Number>, RCP<const Basic>>
-  get_cnt_var_func(const RCP<const FunctionSymbol> &expr){
-    auto rvvec = get_multuple(expr->get_args()[0]);
+  get_cnt_var_func(RCP<const Basic> expr){
+    if (auto ptr = get_if_expected(expr); not ptr.is_null())
+      expr = ptr->get_args()[0];
+
+    auto rvvec = get_multuple(expr);
     rvvec.erase(begin(rvvec));
 
     return max_cnt_var(rvvec);
@@ -85,6 +101,26 @@ namespace stochastic{
     static RCP<const Integer> two{integer(2)};
     return mod(i,*two)->is_zero();
   }
+
+
+  vec_func states_vars(const RCP<const Basic> & expr)
+  {
+    vec_func v{};
+    auto addlist = get_addtuple(expr);
+    for (const auto& addterm : prefix(addlist, 1))
+      {
+        auto mullist = get_multuple(addterm);
+        for (const auto& multerm : prefix(mullist, 1))
+          {
+            auto m = get<0>(get_base_exp(multerm));
+            auto s = get_if_expected(m);
+            if (not s.is_null())
+              v.push_back(s);
+          }
+      }
+    return v;
+  }
+
 
   RCP<const Integer> operator""_i(unsigned long long i) {return integer(i);}
 

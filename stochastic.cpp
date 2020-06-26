@@ -46,8 +46,11 @@ namespace stochastic{
     if (is_a_Number(*arg))
       return arg;
 
-    if (StochasticProcess::is_random(arg))
-      return StochasticProcess::moment(arg);
+    if (StochasticProcess::is_random(arg)){
+      auto r =  StochasticProcess::moment(arg);
+      if (not r.is_null())
+        return r;
+    }
 
    return make_rcp<const FunctionSymbol>("E", arg);
   }
@@ -158,7 +161,7 @@ namespace stochastic{
     return eqs_.find(canon->hash()) != eqs_.end();
   }
 
-  RCP<const Basic> expand(const RCP<const Mul>& expr, const EquationSet & eqs)
+  RCP<const Basic> expand(const RCP<const Basic>& expr, const EquationSet & eqs)
   {
     auto ml{get_multuple(expr)};
     RCP<const Basic> result{ml[0]};
@@ -178,15 +181,31 @@ namespace stochastic{
 
     return result;
   }
-  // size_t coumpute_eqs(const vec_func & seed, const EquationSet& inieqs, const ExpectedOperator & E)
-  // {
-  //   EquationSet eqs{inieqs.get_var()};
-  //   list<RCP<const Basic>> s{seed.begin(), seed.end()};
-  //   while (not s.empty())
-  //     {
-  //       auto t = s.pop_front();
-  //       if ()
-  //     }
-  //   return s.size();
-  // }
+
+  size_t coumpute_eqs(const vec_func & seed, const EquationSet& inieqs, const ExpectedOperator & E)
+  {
+    EquationSet eqs{inieqs.get_var()};
+    list<RCP<const FunctionSymbol>> s{seed.begin(), seed.end()};
+    while (not s.empty())
+      {
+        auto t = s.front();
+        s.pop_front();
+        if (not eqs.contains(t))
+          {
+            // cout << *t << endl;
+            // NOTE: The result of this expectation operator should be a FunctionSymbol
+            // This should not result in a number. Maybe I should do the expansion inside
+            // the operator () of E instead of calling it separately.
+            auto eee = E(expand(t->get_args()[0], inieqs));
+            auto u = E.expand(rcp_dynamic_cast<const FunctionSymbol>(eee));
+            // NOTE: Test
+            // u = expand(u);
+
+            auto stvec = states_vars(u);
+            move(stvec.begin(), stvec.end(), back_inserter(s));
+            eqs.setitem(t, u);
+          }
+      }
+    return eqs.size();
+  }
 }

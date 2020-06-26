@@ -40,7 +40,7 @@ namespace stochastic{
     const Iterator<T>& end() const {return e_;}
   };
 
-  using vec_func = vector<RCP<const Function>>;
+  using vec_func = vector<RCP<const FunctionSymbol>>;
   vec_func states_vars(const RCP<const Basic> &);
 
 

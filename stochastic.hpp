@@ -25,6 +25,9 @@ namespace stochastic{
 
     static RCP<const Basic> moment(const RCP<const Basic> &f);
     static bool is_random(const RCP<const Basic> &sym);
+
+    // TODO: This is only a quick WorkAround
+    static inline void clear() {moment_.clear();}
   };
 
 
@@ -56,7 +59,7 @@ namespace stochastic{
   };
 
   size_t coumpute_eqs(const vec_func &, const EquationSet&, const ExpectedOperator &);
-  RCP<const Basic> expand(const RCP<const Mul>&, const EquationSet &);
+  RCP<const Basic> expand(const RCP<const Basic>&, const EquationSet &);
 }
 
 

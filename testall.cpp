@@ -3,6 +3,7 @@
 #include <symengine/functions.h>
 #include <symengine/symbol.h>
 #include <symengine/ntheory.h>
+#include <symengine/logic.h>
 
 #include "stochastic.hpp"
 #include "utils.hpp"
@@ -176,7 +177,7 @@ void test_ExptectOperator_and_EquationSet(){
   cout << "state_vars [OK]" << endl;
 }
 
-const auto SYMALPHA{symbol("α")}, SYMBETA{symbol("β")};
+const auto SYMALPHA{symbol("α")}, SYMBETA{symbol("β")}, SYMGAMMA{symbol("γ")}, SYMSIGMA{symbol("σ")};
 
 void test_expand()
 {
@@ -203,6 +204,88 @@ void test_expand()
   cout << "test_expand[OK]" << endl;
 }
 
+inline bool is_true(const Boolean & b) {return eq(b, *boolTrue);}
+
+void test_number_of_eqs()
+{
+  StochasticProcess::clear();
+
+  StochasticProcess u{"u", [](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
+                           {
+                             static auto gamma{symbol("γ")};
+                             if (even(*n))
+                               return pow(gamma, n);
+
+                             return zero;
+                           }};
+  StochasticProcess n{"n", [](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
+                           {
+                             static auto sigmav{symbol("σ_n")};
+                             if (even(*n))
+                               return pow(sigmav, n);
+
+                             return zero;
+                           }};
+
+  StochasticProcess v{"v", [](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
+                           {
+                            return null;
+                           }};
+
+  ExpectedOperator E{[](const FunctionSymbol& x, const FunctionSymbol& y){
+                             auto xy = [](const FunctionSymbol &x, const FunctionSymbol &y)
+                                       {
+                                         auto xname{x.get_name()};
+                                         auto yname{y.get_name()};
+
+                                         if (xname == "u" and yname == "u")
+                                           return not eq(x,y);
+
+                                         // NOTE: This is extremely ugly. Maybe there is some better way to do this
+                                         // comparasion.
+                                         if (xname == "v" and yname == "u")
+                                           return not rcp_dynamic_cast<const Integer>(expand(x.get_args()[0] - y.get_args()[0]))->is_positive();
+
+                                         if (xname == "n")
+                                           return true;
+
+
+                                         return false;
+                                       };
+                             return xy(x,y) or xy(y,x);
+                           }};
+
+  const int L = 1, M = 5;
+  vector<RCP<const FunctionSymbol>> a;
+  for (auto i = 0; i < M; i++)
+    a.push_back(make_rcp<const FunctionSymbol>("a", integer(i)));
+
+  auto x  = [&](const auto & k)
+            {
+              RCP<const Basic> sum{zero};
+              // NOTE: This integer could be memorised.
+              for (auto i = 0; i < M; i++)
+                sum = sum + a[i] * u(k - integer(i));
+
+              return sum;
+            };
+
+
+  auto step_size{symbol("μ")}, k{symbol("k")};
+  EquationSet eqs{k};
+
+  eqs.setitem(v(k+one), (one - step_size*pow(x(k), 2_i))*v(k) + step_size*n(k)*x(k));
+
+  auto expr1 = rcp_dynamic_cast<const FunctionSymbol>(E(pow(v(k), 2_i) * pow(u(k - one), 2_i)));
+  auto expr2 = rcp_dynamic_cast<const FunctionSymbol>(E(pow(v(k), 2_i)));
+  // // cout << *expr << endl;
+  // auto eee = E(expand(expr->get_args()[0], eqs));
+  // cout << *eee << endl;
+  // auto eeu = E.expand(rcp_dynamic_cast<const FunctionSymbol>(eee));
+  // cout << *eeu << endl;
+   cout << coumpute_eqs({expr1, expr2}, eqs, E) << endl;
+}
+
 
 int main() {
 
@@ -211,5 +294,6 @@ int main() {
   test_get_addtuple();
   test_ExptectOperator_and_EquationSet();
   test_expand();
+  test_number_of_eqs();
   return 0;
 }

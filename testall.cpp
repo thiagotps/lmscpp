@@ -4,6 +4,7 @@
 #include <symengine/symbol.h>
 #include <symengine/ntheory.h>
 #include <symengine/logic.h>
+#include <symengine/matrix.h>
 
 #include "stochastic.hpp"
 #include "utils.hpp"
@@ -208,6 +209,8 @@ inline bool is_true(const Boolean & b) {return eq(b, *boolTrue);}
 
 void test_number_of_eqs()
 {
+  const int L = 6, M = 1;
+
   StochasticProcess::clear();
 
   StochasticProcess u{"u", [](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
@@ -227,10 +230,12 @@ void test_number_of_eqs()
                              return zero;
                            }};
 
-  StochasticProcess v{"v", [](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
+  vector<StochasticProcess> V;
+  for (auto i = 0; i < L; i++)
+    V.emplace_back("v_" + to_string(i), [](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
                            {
                             return null;
-                           }};
+                           });
 
   ExpectedOperator E{[](const FunctionSymbol& x, const FunctionSymbol& y){
                              auto xy = [](const FunctionSymbol &x, const FunctionSymbol &y)
@@ -243,7 +248,7 @@ void test_number_of_eqs()
 
                                          // NOTE: This is extremely ugly. Maybe there is some better way to do this
                                          // comparasion.
-                                         if (xname == "v" and yname == "u")
+                                         if (xname[0] == 'v' and xname[1] == '_' and yname == "u")
                                            return not rcp_dynamic_cast<const Integer>(expand(x.get_args()[0] - y.get_args()[0]))->is_positive();
 
                                          if (xname == "n")
@@ -255,7 +260,9 @@ void test_number_of_eqs()
                              return xy(x,y) or xy(y,x);
                            }};
 
-  const int L = 1, M = 5;
+
+
+
   vector<RCP<const FunctionSymbol>> a;
   for (auto i = 0; i < M; i++)
     a.push_back(make_rcp<const FunctionSymbol>("a", integer(i)));
@@ -274,16 +281,15 @@ void test_number_of_eqs()
   auto step_size{symbol("μ")}, k{symbol("k")};
   EquationSet eqs{k};
 
-  eqs.setitem(v(k+one), (one - step_size*pow(x(k), 2_i))*v(k) + step_size*n(k)*x(k));
+  RCP<const Basic> inn{zero};
+  for (auto j = 0; j < L; j++)
+    inn = inn + x(k - integer(j))*V[j](k);
 
-  auto expr1 = rcp_dynamic_cast<const FunctionSymbol>(E(pow(v(k), 2_i) * pow(u(k - one), 2_i)));
-  auto expr2 = rcp_dynamic_cast<const FunctionSymbol>(E(pow(v(k), 2_i)));
-  // // cout << *expr << endl;
-  // auto eee = E(expand(expr->get_args()[0], eqs));
-  // cout << *eee << endl;
-  // auto eeu = E.expand(rcp_dynamic_cast<const FunctionSymbol>(eee));
-  // cout << *eeu << endl;
-   cout << coumpute_eqs({expr1, expr2}, eqs, E) << endl;
+  for (auto i = 0; i < L; i++)
+    eqs.setitem(V[i](k+one), V[i](k) - step_size*x(k - integer(i)) * inn + step_size*n(k)*x(k - integer(i)));
+
+  auto epislonk = E.expand(rcp_dynamic_cast<const FunctionSymbol>(E(expand(pow(inn, 2_i)))));
+  cout << coumpute_eqs(states_vars(epislonk), eqs, E) << endl;
 }
 
 

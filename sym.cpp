@@ -34,8 +34,8 @@ operator*(const RCP<const Basic> &l, const RCP<const Basic> &r)
   return mul(l,r);
 }
 
-
 RCP<const Integer> operator""_i(unsigned long long i) {return integer(i);}
+
 
 int main() {
   // auto x = symbol("x");
@@ -51,12 +51,9 @@ int main() {
 
   // cout << *(x ^ integer(2)) << endl;
 
-  auto k{symbol("k")};
-  cout << *expand(sub(k + 2_i, k + 3_i)) << endl;
-  if (rcp_dynamic_cast<const Number>(expand(sub(k + 2_i, k + 3_i)))->is_negative())
-    cout << "<" << endl;
-  else
-    cout << ">=" << endl;
+  DenseMatrix m{2,2};
+  zeros(m);
+  cout << m << endl;
 
   return 0;
 }

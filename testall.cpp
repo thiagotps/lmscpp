@@ -205,12 +205,8 @@ void test_expand()
   cout << "test_expand[OK]" << endl;
 }
 
-inline bool is_true(const Boolean & b) {return eq(b, *boolTrue);}
-
-void test_number_of_eqs()
+size_t get_number_of_eqs(const int L, const int M)
 {
-  const int L = 6, M = 1;
-
   StochasticProcess::clear();
 
   StochasticProcess u{"u", [](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
@@ -289,9 +285,24 @@ void test_number_of_eqs()
     eqs.setitem(V[i](k+one), V[i](k) - step_size*x(k - integer(i)) * inn + step_size*n(k)*x(k - integer(i)));
 
   auto epislonk = E.expand(rcp_dynamic_cast<const FunctionSymbol>(E(expand(pow(inn, 2_i)))));
-  cout << coumpute_eqs(states_vars(epislonk), eqs, E) << endl;
+  return coumpute_eqs(states_vars(epislonk), eqs, E);
 }
 
+void test_number_of_eqs()
+{
+  vector<tuple<int,int,int>> data{{1,1,1}, {1,2,3}, {1,3,19},
+                                 {1,4,152},{1,5,1341},{2,1,5},
+                                 {2,2,48}, {2,3,394}, {2,4,3517},
+                                 {3,1, 37}, {3,2,698}};
+
+  for_each(data.begin(), data.end(), [](const auto & t)
+                                     {
+                                       auto ne = get_number_of_eqs(get<0>(t), get<1>(t));
+                                       assert(ne == get<2>(t));
+                                     });
+
+  cout << "test_number_of_eqs [OK]" << endl;
+}
 
 int main() {
 

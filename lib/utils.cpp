@@ -1,4 +1,4 @@
-#include "utils.hpp"
+#include <lmscpp/utils.hpp>
 #include <symengine/number.h>
 #include <symengine/basic-inl.h>
 #include <symengine/subs.h>

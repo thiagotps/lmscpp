@@ -1,5 +1,6 @@
-#include "stochastic.hpp"
-#include "utils.hpp"
+#include <lmscpp/stochastic.hpp>
+#include <lmscpp/utils.hpp>
+
 #include <symengine/basic-inl.h>
 #include <symengine/subs.h>
 

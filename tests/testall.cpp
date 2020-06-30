@@ -6,9 +6,9 @@
 #include <symengine/logic.h>
 #include <symengine/matrix.h>
 
-#include "stochastic.hpp"
-#include "utils.hpp"
-#include "operators.hpp"
+#include <lmscpp/stochastic.hpp>
+#include <lmscpp/utils.hpp>
+#include <lmscpp/operators.hpp>
 
 using namespace SymEngine;
 using namespace SymEngine::OverloadedOperators;

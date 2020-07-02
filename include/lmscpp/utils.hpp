@@ -4,6 +4,7 @@
 #include <symengine/expression.h>
 #include <symengine/functions.h>
 #include <symengine/symbol.h>
+#include <symengine/matrix.h>
 #include <tuple>
 
 namespace stochastic{
@@ -43,8 +44,11 @@ namespace stochastic{
   using vec_func = vector<RCP<const FunctionSymbol>>;
   vec_func states_vars(const RCP<const Basic> &);
 
+  tuple<RCP<const Basic>,vector<tuple<RCP<const Basic>,size_t>>>
+  cnt_st_terms(const RCP<const Basic> &);
 
-  RCP<const Integer> operator""_i(unsigned long long);
+
+  inline RCP<const Integer> operator""_i(unsigned long long i) {return integer(i);}
 }
 
 #endif // __UTILS_H_

@@ -142,6 +142,11 @@ namespace stochastic{
 
   EquationSet::EquationSet(const RCP<const Basic> &var): var_{var}, eqs_{} {};
 
+  RCP<const Basic> EquationSet::getitem(size_t hash) const
+  {
+    return eqs_.at(hash);
+  }
+
   RCP<const Basic> EquationSet::getitem(const RCP<const FunctionSymbol> &lhs) const
   {
     auto [canon_lhs, cnt] = canonical_form(lhs);
@@ -199,8 +204,6 @@ namespace stochastic{
             // the operator () of E instead of calling it separately.
             auto eee = E(expand(t->get_args()[0], inieqs));
             auto u = E.expand(rcp_dynamic_cast<const FunctionSymbol>(eee));
-            // NOTE: Test
-            // u = expand(u);
 
             auto stvec = states_vars(u);
             move(stvec.begin(), stvec.end(), back_inserter(s));
@@ -208,5 +211,69 @@ namespace stochastic{
           }
       }
     return eqs.size();
+  }
+
+  tuple<const DenseMatrix,const DenseMatrix>
+  state_var_matrix(const vector<RCP<const FunctionSymbol>>& stlist, const EquationSet& eqs)
+  {
+    vector<size_t> sthash;
+    for (const auto & b : stlist)
+      sthash.push_back(canonical_form(b).first->hash());
+
+    unordered_map<size_t, int> stpos;
+    for (auto idx = 0; idx < sthash.size(); idx++)
+      stpos[sthash[idx]] = idx;
+
+    unsigned int n{static_cast<unsigned int>(sthash.size())};
+    DenseMatrix A{n,n}, B{n,1};
+    zeros(A);
+    zeros(B);
+
+    for (const auto h : sthash)
+      {
+        auto terms = cnt_st_terms(eqs.getitem(h));
+        int i{stpos[h]};
+        B.set(i, 0, add(B.get(i, 0) , get<0>(terms)));
+
+        for (const auto & t : get<1>(terms))
+          {
+            auto [cnt, hash] = t;
+            int j{stpos[hash]};
+            A.set(i,j, add(A.get(i,j), cnt));
+          }
+      }
+
+    return {A,B};
+  }
+
+
+  void Experiment::compute(const vec_func & seed)
+  {
+    EquationSet eqs{inieqs_.get_var()};
+    list<RCP<const FunctionSymbol>> s{seed.begin(), seed.end()};
+    vector<RCP<const FunctionSymbol>> Y;
+    while (not s.empty())
+      {
+        auto t = s.front();
+        s.pop_front();
+        if (not eqs.contains(t))
+          {
+            Y.push_back(t);
+            // NOTE: The result of this expectation operator should be a FunctionSymbol
+            // This should not result in a number. Maybe I should do the expansion inside
+            // the operator () of E instead of calling it separately.
+            auto eee = E_(expand(t->get_args()[0], inieqs_));
+            auto u = E_.expand(rcp_dynamic_cast<const FunctionSymbol>(eee));
+
+            auto stvec = states_vars(u);
+            move(stvec.begin(), stvec.end(), back_inserter(s));
+            eqs.setitem(t, u);
+          }
+      }
+    number_of_eqs_ = eqs.size();
+    tie(A_,B_) = state_var_matrix(Y, eqs);
+
+    vec_basic Ybasic{Y.begin(), Y.end()};
+    Yk_ = DenseMatrix{Ybasic};
   }
 }

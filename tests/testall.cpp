@@ -285,7 +285,14 @@ size_t get_number_of_eqs(const int L, const int M)
     eqs.setitem(V[i](k+one), V[i](k) - step_size*x(k - integer(i)) * inn + step_size*n(k)*x(k - integer(i)));
 
   auto epislonk = E.expand(rcp_dynamic_cast<const FunctionSymbol>(E(expand(pow(inn, 2_i)))));
-  return coumpute_eqs(states_vars(epislonk), eqs, E);
+  Experiment todo{eqs, E};
+  todo.compute(states_vars(epislonk));
+
+  // auto Yk{todo.get_Yk()}, A{todo.get_A()}, B{todo.get_B()};
+  // cout << "YK = " << Yk << endl;
+  // cout << "A = " << A << endl;
+  // cout << "B = " << B << endl;
+  return todo.get_number_of_eqs();
 }
 
 void test_number_of_eqs()

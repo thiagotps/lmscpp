@@ -121,7 +121,41 @@ namespace stochastic{
     return v;
   }
 
+  // Give a expression like 2*gamma*E(v(k+1)*v(k+2)) + 3*alpha + 4, this function
+  // gives a vector of tuples in which the first term of each tuple is the multiplier constant
+  // and the second is the state variable's hash. The sum constant, in this example 3*alpha + 4, is always
+  // placed in the first slot of the tuple whereas its second element is the actual vector.
+  tuple<RCP<const Basic>,vector<tuple<RCP<const Basic>,size_t>>>
+  cnt_st_terms(const RCP<const Basic> & expr)
+  {
+    auto addlist = get_addtuple(expr);
+    auto expr_cnt = addlist[0];
 
-  RCP<const Integer> operator""_i(unsigned long long i) {return integer(i);}
+    vector<tuple<RCP<const Basic>,size_t>> result{};
+    for (const auto & addterm : prefix(addlist, 1))
+      {
+        auto mullist = get_multuple(addterm);
+        auto mcnt = mullist[0];
+
+        RCP<const FunctionSymbol> st{null};
+        for (const auto & multerm : prefix(mullist, 1))
+          {
+            st = get_if_expected(multerm);
+            if (st.is_null())
+              mcnt = mul(mcnt, multerm);
+          }
+
+        // No state variable was found. We have only a constant.
+        if (st.is_null())
+          expr_cnt = add(expr_cnt, mcnt);
+        else
+          result.push_back({mcnt, canonical_form(st).first->hash()});
+      }
+
+    return {expr_cnt, result};
+  }
+
+
+
 
 }

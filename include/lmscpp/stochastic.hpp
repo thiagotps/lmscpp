@@ -4,6 +4,7 @@
 #include <symengine/expression.h>
 #include <symengine/functions.h>
 #include <symengine/symbol.h>
+#include <symengine/matrix.h>
 #include <functional>
 #include <initializer_list>
 #include <cstdint>
@@ -51,6 +52,11 @@ namespace stochastic{
   public:
     EquationSet(const RCP<const Basic> &var);
     RCP<const Basic> getitem(const RCP<const FunctionSymbol> &lhs) const;
+
+    //    getitem by its canonical form's hash.
+    // If you are unsure if your expression is canonical or not then you shouldn't use
+    // this method.
+    RCP<const Basic> getitem(size_t hash) const;
     void setitem(const RCP<const FunctionSymbol> &lhs,const RCP<const Basic> &rhs);
     size_t size() const;
 
@@ -58,8 +64,27 @@ namespace stochastic{
     bool contains(const RCP<const FunctionSymbol> & key) const;
   };
 
+  // NOTE: Obsolete
   size_t coumpute_eqs(const vec_func &, const EquationSet&, const ExpectedOperator &);
   RCP<const Basic> expand(const RCP<const Basic>&, const EquationSet &);
+
+
+  class Experiment
+  {
+    DenseMatrix A_,B_,Yk_;
+    size_t number_of_eqs_;
+    const EquationSet& inieqs_;
+    const ExpectedOperator& E_;
+  public:
+    Experiment(const EquationSet & inieqs, const ExpectedOperator & E): inieqs_{inieqs}, E_{E} {};
+    void save(ofstream&) const;
+    void load(ifstream&);
+    void compute(const vec_func &);
+    inline const DenseMatrix & get_A() const {return A_;};
+    inline const DenseMatrix & get_Yk() const {return Yk_;};
+    inline const DenseMatrix & get_B() const {return B_;};
+    inline size_t get_number_of_eqs() const {return number_of_eqs_;};
+  };
 }
 
 

@@ -211,9 +211,8 @@ size_t get_number_of_eqs(const int L, const int M)
 
   StochasticProcess u{"u", [](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
                            {
-                             static auto gamma{symbol("γ")};
                              if (even(*n))
-                               return pow(gamma, n);
+                               return symbol("γ_"+n->__str__());
 
                              return zero;
                            }};
@@ -303,20 +302,20 @@ size_t get_number_of_eqs(const int L, const int M)
         todo.save(fs);
       }
   }
-  // auto Yk{todo.get_Yk()}, A{todo.get_A()}, B{todo.get_B()};
-  // cout << "YK = " << Yk << endl;
-  // cout << "A = " << A << endl;
-  // cout << "B = " << B << endl;
+  auto Yk{todo.get_Yk()}, A{todo.get_A()}, B{todo.get_B()};
+  cout << "YK = " << Yk << endl;
+  cout << "A = " << A << endl;
+  cout << "B = " << B << endl;
   return todo.get_number_of_eqs();
 }
 
 void test_number_of_eqs()
 {
-  // vector<tuple<int,int,int>> data{{1,2,3}};
-  vector<tuple<int,int,int>> data{{1,1,1}, {1,2,3}, {1,3,19},
-                                 {1,4,152},{1,5,1341},{2,1,5},
-                                 {2,2,48}, {2,3,394}, {2,4,3517},
-                                 {3,1, 37}, {3,2,698}};
+  vector<tuple<int,int,int>> data{{1,2,3}};
+  // vector<tuple<int,int,int>> data{{1,1,1}, {1,2,3}, {1,3,19},
+  //                                {1,4,152},{1,5,1341},{2,1,5},
+  //                                {2,2,48}, {2,3,394}, {2,4,3517},
+  //                                {3,1, 37}, {3,2,698}};
 
   for_each(data.begin(), data.end(), [](const auto & t)
                                      {

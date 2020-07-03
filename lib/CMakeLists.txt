@@ -1,5 +1,5 @@
 # Prevent SymEngine from building tests
-set (BUILD_TESTS OFF)
+set (BUILD_TESTS CACHE BOOL "NO")
 
 include(FetchContent)
 FetchContent_Declare(
@@ -20,6 +20,7 @@ FetchContent_MakeAvailable(bitsery)
 find_package(SymEngine)
 
 add_library(stochastic stochastic.cpp utils.cpp )
+target_compile_features(stochastic PUBLIC cxx_std_17)
 target_include_directories(stochastic PUBLIC ../include)
 target_include_directories(stochastic PUBLIC ${SYMENGINE_INCLUDE_DIRS})
 target_link_libraries(stochastic PUBLIC ${SYMENGINE_LIBRARIES})

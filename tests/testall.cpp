@@ -286,8 +286,23 @@ size_t get_number_of_eqs(const int L, const int M)
 
   auto epislonk = E.expand(rcp_dynamic_cast<const FunctionSymbol>(E(expand(pow(inn, 2_i)))));
   Experiment todo{eqs, E};
-  todo.compute(states_vars(epislonk));
 
+  {
+    string filename{"cache"+to_string(L)+to_string(M)+".bin"};
+    fstream fs{filename, fstream::binary | fstream::in};
+    if (fs.is_open())
+      {
+        cout << "Using cached data..." << endl;
+        todo.load(fs);
+      }
+    else
+      {
+        cout << "It was not possible to open the cache. Computing equations..." << endl;
+        todo.compute(states_vars(epislonk));
+        fs.open(filename, fstream::binary | fstream::out);
+        todo.save(fs);
+      }
+  }
   // auto Yk{todo.get_Yk()}, A{todo.get_A()}, B{todo.get_B()};
   // cout << "YK = " << Yk << endl;
   // cout << "A = " << A << endl;
@@ -297,6 +312,7 @@ size_t get_number_of_eqs(const int L, const int M)
 
 void test_number_of_eqs()
 {
+  // vector<tuple<int,int,int>> data{{1,2,3}};
   vector<tuple<int,int,int>> data{{1,1,1}, {1,2,3}, {1,3,19},
                                  {1,4,152},{1,5,1341},{2,1,5},
                                  {2,2,48}, {2,3,394}, {2,4,3517},
@@ -305,7 +321,8 @@ void test_number_of_eqs()
   for_each(data.begin(), data.end(), [](const auto & t)
                                      {
                                        auto ne = get_number_of_eqs(get<0>(t), get<1>(t));
-                                       assert(ne == get<2>(t));
+                                       if (ne != get<2>(t))
+                                           throw runtime_error{"Got " + to_string(ne) + " equations. " + "It should be " + to_string(get<2>(t))};
                                      });
 
   cout << "test_number_of_eqs [OK]" << endl;

@@ -9,7 +9,8 @@
 #include <initializer_list>
 #include <cstdint>
 #include <string>
-#include "utils.hpp"
+
+#include <lmscpp/utils.hpp>
 
 namespace stochastic{
   using namespace std;
@@ -75,10 +76,11 @@ namespace stochastic{
     size_t number_of_eqs_;
     const EquationSet& inieqs_;
     const ExpectedOperator& E_;
+
   public:
     Experiment(const EquationSet & inieqs, const ExpectedOperator & E): inieqs_{inieqs}, E_{E} {};
-    void save(ofstream&) const;
-    void load(ifstream&);
+    void save(fstream&) const;
+    void load(fstream&);
     void compute(const vec_func &);
     inline const DenseMatrix & get_A() const {return A_;};
     inline const DenseMatrix & get_Yk() const {return Yk_;};

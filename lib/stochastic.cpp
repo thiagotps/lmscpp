@@ -1,10 +1,21 @@
+#include <fstream>
+#include <iostream>
+#include <numeric>
+#include <stdexcept>
+
 #include <lmscpp/stochastic.hpp>
 #include <lmscpp/utils.hpp>
+#include <lmscpp/nodevisitor.hpp>
 
 #include <symengine/basic-inl.h>
 #include <symengine/subs.h>
 
-#include <numeric>
+#include <bitsery/bitsery.h>
+#include <bitsery/adapter/stream.h>
+#include <bitsery/adapter/buffer.h>
+#include <bitsery/brief_syntax.h>
+#include <bitsery/brief_syntax/vector.h>
+#include <bitsery/brief_syntax/string.h>
 
 namespace stochastic{
   unordered_map<string,moment_type> StochasticProcess::moment_{};
@@ -275,5 +286,43 @@ namespace stochastic{
 
     vec_basic Ybasic{Y.begin(), Y.end()};
     Yk_ = DenseMatrix{Ybasic};
+  }
+
+
+  using namespace NodeVisitor;
+  using namespace bitsery;
+
+  struct internal_repr
+  {
+    size_t number_of_eqs;
+    vector<vector<Node>> A,B,Yk;
+    template <typename S>
+    void serialize(S& s) {
+      s(number_of_eqs, A,B,Yk);
+    }
+  };
+
+
+  void Experiment::save(fstream& os) const
+  {
+    internal_repr repr{number_of_eqs_, matrix2vecnode(A_), matrix2vecnode(B_), matrix2vecnode(Yk_)};
+    Serializer<OutputBufferedStreamAdapter> ser{os};
+    ser.object(repr);
+    ser.adapter().flush();
+  }
+
+  void Experiment::load(fstream &is)
+  {
+    internal_repr repr;
+    // auto state = quickDeserialization<InputStreamAdapter>(is, repr);
+    auto state = bitsery::quickDeserialization<bitsery::InputStreamAdapter>(is, repr);
+
+    if (not (state.first == bitsery::ReaderError::NoError && state.second))
+      throw runtime_error{"Failed to desirialize in the method load of the class Experiment."};
+
+    number_of_eqs_ = repr.number_of_eqs;
+    A_ = vecnode2matrix(repr.A);
+    B_ = vecnode2matrix(repr.B);
+    Yk_ = vecnode2matrix(repr.Yk);
   }
 }

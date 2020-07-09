@@ -10,21 +10,27 @@ namespace SymEngine
   namespace OverloadedOperators
   {
     RCP<const Basic>
-    operator+(const RCP<const Basic> &l, const RCP<const Basic> &r)
+    inline operator+(const RCP<const Basic> &l, const RCP<const Basic> &r)
     {
       return add(l,r);
     }
 
     RCP<const Basic>
-    operator-(const RCP<const Basic> &l, const RCP<const Basic> &r)
+    inline operator-(const RCP<const Basic> &l, const RCP<const Basic> &r)
     {
       return sub(l,r);
     }
 
     RCP<const Basic>
-    operator*(const RCP<const Basic> &l, const RCP<const Basic> &r)
+    inline operator*(const RCP<const Basic> &l, const RCP<const Basic> &r)
     {
       return mul(l,r);
+    }
+
+    RCP<const Basic>
+    inline operator/(const RCP<const Basic> &l, const RCP<const Basic> &r)
+    {
+      return div(l,r);
     }
 
   }

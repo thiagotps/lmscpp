@@ -6,9 +6,11 @@
 #include <lmscpp/stochastic.hpp>
 #include <lmscpp/utils.hpp>
 #include <lmscpp/nodevisitor.hpp>
+#include <lmscpp/operators.hpp>
 
 #include <symengine/basic-inl.h>
 #include <symengine/subs.h>
+#include <symengine/number.h>
 
 #include <bitsery/bitsery.h>
 #include <bitsery/adapter/stream.h>
@@ -269,7 +271,7 @@ namespace stochastic{
         s.pop_front();
         if (not eqs.contains(t))
           {
-            Y.push_back(t);
+            Y.push_back(rcp_static_cast<const FunctionSymbol>(canonical_form(t).first));
             // NOTE: The result of this expectation operator should be a FunctionSymbol
             // This should not result in a number. Maybe I should do the expansion inside
             // the operator () of E instead of calling it separately.
@@ -318,11 +320,81 @@ namespace stochastic{
     auto state = bitsery::quickDeserialization<bitsery::InputStreamAdapter>(is, repr);
 
     if (not (state.first == bitsery::ReaderError::NoError && state.second))
-      throw runtime_error{"Failed to desirialize in the method load of the class Experiment."};
+      throw runtime_error{"Failed to deserialize in the method load of the class Experiment."};
 
     number_of_eqs_ = repr.number_of_eqs;
     A_ = vecnode2matrix(repr.A);
     B_ = vecnode2matrix(repr.B);
     Yk_ = vecnode2matrix(repr.Yk);
+  }
+
+  DenseMatrix Experiment::get_sym_Y0() const
+  {
+    // NOTE: YK_.ncols() will be always equal to one.
+    DenseMatrix y0(Yk_.nrows(), Yk_.ncols());
+
+    unsigned int n{Yk_.nrows()};
+    for (auto idx = 0; idx < n; idx++)
+      {
+        auto k_to_zero = xreplace(Yk_.get(idx,0)->get_args()[0], {{inieqs_.get_var(), zero}});
+        auto mulvec{get_multuple(k_to_zero)};
+        y0.set(idx,0, one);
+        for (auto & term : prefix(mulvec, 1))
+          {
+            auto val = y0.get(idx,0);
+            y0.set(idx,0, mul(val,E_(term)));
+          }
+      }
+
+    return y0;
+  }
+
+  DenseMatrix Experiment::sym2num(const DenseMatrix & m) const
+  {
+    DenseMatrix tmp{m.nrows(), m.ncols()};
+    for (auto i = 0; i < m.nrows(); i++)
+      for (auto j = 0; j < m.ncols(); j++)
+        {
+          tmp.set(i, j, xreplace(m.get(i, j),inivalsmap_));
+          if (not is_a_Number(*tmp.get(i,j)))
+            throw runtime_error("It was not possible to convert expression to number.");
+        }
+
+    return tmp;
+  }
+
+  // Should throw if randexpr is not valid.
+  void Experiment::write_skewness(int niter,RCP<const Basic> randexpr, ofstream & os)
+  {
+    using namespace OverloadedOperators;
+    int fi{-1}, si{-1}, ti{-1};
+
+    {
+      auto fm{E_(randexpr)}, sm{E_(pow(randexpr, 2_i))}, tm{E_(pow(randexpr, 3_i))};
+      for (auto i = 0; i < Yk_.nrows(); i++)
+        {
+          if (eq(*Yk_.get(i, 0), *fm))
+            fi = i;
+          else if(eq(*Yk_.get(i, 0), *sm))
+            si = i;
+          else if(eq(*Yk_.get(i, 0), *tm))
+            ti = i;
+        }
+
+      if (fi == -1 or si == -1 or ti == -1)
+        throw runtime_error("It was not possible to find all the three moments in the state variable's matrix.");
+    }
+
+    num_stv_iter numstv{get_num_A(),get_num_B(), get_num_Y0()};
+    for (int idx{0}; idx < niter; ++idx)
+      {
+        auto yk = *numstv;
+        auto fm = yk.get(fi, 0), sm = yk.get(si, 0), tm = yk.get(ti, 0);
+        auto sd = sqrt(sm - pow(fm, 2_i));
+        auto sk = (tm - 3_i * fm * pow(sd, 2_i) - pow(fm, 3_i))/pow(sd, 3_i);
+
+        os << idx << " " << *sk << endl;
+        ++numstv;
+      }
   }
 }

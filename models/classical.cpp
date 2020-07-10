@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <chrono>
 
 #include <symengine/expression.h>
 #include <symengine/functions.h>
@@ -19,6 +20,20 @@ using namespace SymEngine;
 using namespace SymEngine::OverloadedOperators;
 using namespace std;
 using namespace stochastic;
+
+using namespace chrono;
+class MeasureDuration
+{
+  time_point<high_resolution_clock> t0{high_resolution_clock::now()};
+public:
+  void reset() {t0 = high_resolution_clock::now();}
+  void show(string fname) const
+  {
+    auto t1{ high_resolution_clock::now() };
+    cout << fname
+         << " taked " <<  duration_cast<seconds>(t1 - t0).count() << "s." << endl;
+  }
+};
 
 uintmax_t numfactorial(uintmax_t n)
 {
@@ -183,6 +198,7 @@ int main(int argc, char ** argv)
 
   auto epislonk = E.expand(rcp_dynamic_cast<const FunctionSymbol>(E(expand(pow(inn, 2_i)))));
 
+  MeasureDuration duration;
   Experiment todo{eqs, E, cache};
 
   {
@@ -191,7 +207,9 @@ int main(int argc, char ** argv)
     if ((not force) and fs.is_open())
       {
         cout << "Using cached data..." << endl;
+        duration.reset();
         todo.load(fs);
+        duration.show("todo.load()");
       }
     else
       {
@@ -200,9 +218,15 @@ int main(int argc, char ** argv)
         else
           cout << "Computing equations..." << endl;
 
+        duration.reset();
         todo.compute(states_vars(epislonk));
+        duration.show("todo.compute()");
+
         fs.open(filename, fstream::binary | fstream::out);
+
+        duration.reset();
         todo.save(fs);
+        duration.show("todo.save()");
       }
   }
 
@@ -225,12 +249,15 @@ int main(int argc, char ** argv)
   if (evolution_filename != "")
     {
       ofstream os{evolution_filename, ofstream::out | ofstream::trunc};
+
+      duration.reset();
       num_stv_iter iter{todo.get_num_A(), todo.get_num_B(), todo.get_num_Y0()};
       for (auto i = 0; i < niter; i++)
         {
           cout << *iter << endl;
           ++iter;
         }
+      duration.show("Matrix evolution");
     }
 
   cout << "NUMBER_OF_EQUATIONS: " << todo.get_number_of_eqs() << endl;

@@ -99,13 +99,13 @@ namespace stochastic{
     size_t number_of_eqs_;
     const EquationSet& inieqs_;
     const ExpectedOperator& E_;
-    map_basic_basic inivalsmap_;
+    map_basic_basic& inivalsmap_;
 
   public:
     DenseMatrix sym2num(const DenseMatrix&) const;
 
     Experiment(const EquationSet & inieqs, const ExpectedOperator & E,
-               map_basic_basic inivalsmap = map_basic_basic{}): inieqs_{inieqs}, E_{E}, inivalsmap_{inivalsmap} {};
+               map_basic_basic& inivalsmap): inieqs_{inieqs}, E_{E}, inivalsmap_{inivalsmap} {};
 
     void save(fstream&) const;
     void load(fstream&);

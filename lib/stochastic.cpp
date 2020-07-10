@@ -357,7 +357,7 @@ namespace stochastic{
         {
           tmp.set(i, j, xreplace(m.get(i, j),inivalsmap_));
           if (not is_a_Number(*tmp.get(i,j)))
-            throw runtime_error("It was not possible to convert expression to number.");
+            throw runtime_error("It was not possible to convert expression " + tmp.get(i,j)->__str__() + " to number.");
         }
 
     return tmp;

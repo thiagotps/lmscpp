@@ -20,6 +20,43 @@ using namespace SymEngine::OverloadedOperators;
 using namespace std;
 using namespace stochastic;
 
+uintmax_t numfactorial(uintmax_t n)
+{
+  uintmax_t f{1};
+  while (n)
+    {
+      f *= n;
+      n--;
+    }
+  return f;
+}
+
+class ULaplacianMoment
+{
+  map_basic_basic & cache_;
+  const double scale_;
+public:
+  ULaplacianMoment(double scale, map_basic_basic & cache): scale_{scale}, cache_{cache} {};
+  RCP<const Basic> operator()(const vec_basic&, const RCP<const Integer>& n)
+  {
+    uintmax_t p{ static_cast<uintmax_t>(n->as_int()) };
+    if (p % 2 == 0)
+      {
+        auto sym{ symbol("γ_" + to_string(p)) };
+
+        if (cache_.find(sym) == cache_.end())
+          {
+            auto num{ number(numfactorial(p)*pow(scale_, p)) };
+            cache_[sym] = num;
+          }
+
+        return sym;
+      }
+
+    return zero;
+  }
+};
+
 // classical -L -M --symmatrix file --nummatrix file --evolution file --force
 // NUMBER_OF_EQUATIONS: 1000
 int main(int argc, char ** argv)
@@ -62,20 +99,17 @@ int main(int argc, char ** argv)
   const int niter{program.get<int>("--niter")};
   const bool force{program.get<bool>("--force")};
 
+  const auto sigma{ symbol("σ_n") };
+  map_basic_basic cache{ {sigma, number(0.001)} };
+
   StochasticProcess::clear();
 
-  StochasticProcess u{"u", [](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
-                           {
-                             if (even(*n))
-                               return symbol("γ_"+n->__str__());
+  StochasticProcess u{"u", ULaplacianMoment{0.5,cache}};
 
-                             return zero;
-                           }};
-  StochasticProcess n{"n", [](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
+  StochasticProcess n{"n", [&sigma](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
                            {
-                             static auto sigmav{symbol("σ_n")};
                              if (even(*n))
-                               return pow(sigmav, n);
+                               return pow(sigma, n);
 
                              return zero;
                            }};
@@ -118,7 +152,11 @@ int main(int argc, char ** argv)
 
   vector<RCP<const FunctionSymbol>> a;
   for (auto i = 0; i < M; i++)
-    a.push_back(make_rcp<const FunctionSymbol>("a", integer(i)));
+    {
+      auto ai { function_symbol("a", integer(i)) };
+      a.push_back( rcp_static_cast<const FunctionSymbol>(ai) );
+      cache[ai] = number(1.0/(i+1));
+    }
 
   auto x  = [&](const auto & k)
             {
@@ -132,6 +170,8 @@ int main(int argc, char ** argv)
 
 
   auto step_size{symbol("μ")}, k{symbol("k")};
+  cache[step_size] = number(0.1);
+
   EquationSet eqs{k};
 
   RCP<const Basic> inn{zero};
@@ -142,7 +182,8 @@ int main(int argc, char ** argv)
     eqs.setitem(V[i](k+one), V[i](k) - step_size*x(k - integer(i)) * inn + step_size*n(k)*x(k - integer(i)));
 
   auto epislonk = E.expand(rcp_dynamic_cast<const FunctionSymbol>(E(expand(pow(inn, 2_i)))));
-  Experiment todo{eqs, E};
+
+  Experiment todo{eqs, E, cache};
 
   {
     string filename{"cache"+to_string(L)+to_string(M)+".bin"};

@@ -265,6 +265,7 @@ namespace stochastic{
     EquationSet eqs{inieqs_.get_var()};
     list<RCP<const FunctionSymbol>> s{seed.begin(), seed.end()};
     vector<RCP<const FunctionSymbol>> Y;
+
     while (not s.empty())
       {
         auto t = s.front();
@@ -349,13 +350,45 @@ namespace stochastic{
     return y0;
   }
 
+  class FallBackXReplaceVisitor: public BaseVisitor<FallBackXReplaceVisitor, XReplaceVisitor>
+  {
+    const fallback_func_type &fallback_;
+  public:
+    using XReplaceVisitor::bvisit;
+
+    FallBackXReplaceVisitor(const map_basic_basic &subs_dict_, const fallback_func_type &fallback)
+      : BaseVisitor<FallBackXReplaceVisitor, XReplaceVisitor>(subs_dict_) , fallback_{fallback}
+    {
+    };
+
+    void bvisit(const Symbol &x)
+    {
+      if (fallback_){
+        // cout << "I should not be there." << endl;
+        result_ = fallback_(x);
+      }
+      else
+        result_ = null;
+
+      if (result_.is_null())
+        result_ = x.rcp_from_this();
+    }
+  };
+
+  inline RCP<const Basic> fallxreplace(const RCP<const Basic> &x,
+                                   const map_basic_basic &subs_dict, const fallback_func_type &fall)
+  {
+    FallBackXReplaceVisitor s{subs_dict, fall};
+    return s.apply(x);
+  }
+
   DenseMatrix Experiment::sym2num(const DenseMatrix & m) const
   {
     DenseMatrix tmp{m.nrows(), m.ncols()};
     for (auto i = 0; i < m.nrows(); i++)
       for (auto j = 0; j < m.ncols(); j++)
         {
-          tmp.set(i, j, xreplace(m.get(i, j),inivalsmap_));
+          tmp.set(i, j, fallxreplace(m.get(i, j),inivalsmap_, fallback_));
           if (not is_a_Number(*tmp.get(i,j)))
             throw runtime_error("It was not possible to convert expression " + tmp.get(i,j)->__str__() + " to number.");
         }

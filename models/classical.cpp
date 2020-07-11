@@ -119,7 +119,13 @@ int main(int argc, char ** argv)
 
   StochasticProcess::clear();
 
-  StochasticProcess u{"u", ULaplacianMoment{0.5,cache}};
+  StochasticProcess u{"u",  [](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
+                      {
+                       if (n->as_int() % 2 == 0)
+                         return symbol("γ_" + to_string(n->as_int()));
+
+                       return zero;
+                      }};
 
   StochasticProcess n{"n", [&sigma](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
                            {
@@ -199,7 +205,22 @@ int main(int argc, char ** argv)
   auto epislonk = E.expand(rcp_dynamic_cast<const FunctionSymbol>(E(expand(pow(inn, 2_i)))));
 
   MeasureDuration duration;
-  Experiment todo{eqs, E, cache};
+  Experiment todo{eqs, E, cache, [](const Symbol & x) -> RCP<const Basic>
+                                 {
+                                  static const double scale = 0.5;
+                                  auto name = x.__str__();
+                                  cout << "Found " << name << endl;
+                                  if (name.size() >= 4 and name.substr(0, 2) == "γ")
+                                    {
+                                      cout << "Enter" << endl;
+                                      auto p{ stoll(name.substr(3)) };
+                                      auto res = numfactorial(p)*pow(scale, p);
+                                      return number(res);
+                                    }
+
+                                  return null;
+                                 }};
+  // Experiment todo{eqs, E, cache};
 
   {
     string filename{"cache"+to_string(L)+to_string(M)+".bin"};

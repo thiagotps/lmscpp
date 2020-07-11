@@ -93,19 +93,24 @@ namespace stochastic{
     };
   };
 
+  using fallback_func_type = function<RCP<const Basic> (const Symbol &x)>;
   class Experiment
   {
     DenseMatrix A_,B_,Yk_;
     size_t number_of_eqs_;
     const EquationSet& inieqs_;
     const ExpectedOperator& E_;
-    map_basic_basic& inivalsmap_;
+    const map_basic_basic& inivalsmap_;
+    const fallback_func_type fallback_; // Why I can't put a & here ?
 
   public:
     DenseMatrix sym2num(const DenseMatrix&) const;
 
     Experiment(const EquationSet & inieqs, const ExpectedOperator & E,
-               map_basic_basic& inivalsmap): inieqs_{inieqs}, E_{E}, inivalsmap_{inivalsmap} {};
+               const map_basic_basic& inivalsmap = map_basic_basic{},
+               fallback_func_type fallback = fallback_func_type{}): inieqs_{inieqs}, E_{E}, inivalsmap_{inivalsmap},
+                                                                       fallback_{fallback}
+    {};
 
     void save(fstream&) const;
     void load(fstream&);

@@ -34,6 +34,15 @@ namespace NodeVisitor
 
     Node() = default;
     Node(const RCP<const Basic> &b) {b->accept(*this);}
+    bool operator==(const Node &n) const
+    {
+      return type == n.type and name == n.name
+        and neighbours == n.neighbours;
+    }
+    bool operator!=(const Node &n) const
+    {
+      return not (*this == n);
+    }
 
     RCP<const Basic> to_basic() const;
 

@@ -209,10 +209,8 @@ int main(int argc, char ** argv)
                                  {
                                   static const double scale = 0.5;
                                   auto name = x.__str__();
-                                  cout << "Found " << name << endl;
                                   if (name.size() >= 4 and name.substr(0, 2) == "γ")
                                     {
-                                      cout << "Enter" << endl;
                                       auto p{ stoll(name.substr(3)) };
                                       auto res = numfactorial(p)*pow(scale, p);
                                       return number(res);
@@ -262,9 +260,11 @@ int main(int argc, char ** argv)
   if (nummatrix_filename != "")
     {
       ofstream os{nummatrix_filename, ofstream::out | ofstream::trunc};
+      duration.reset();
       os << todo.get_num_A() << endl;
       os << todo.get_num_Y0() << endl;
       os << todo.get_num_B() << endl;
+      duration.show("Numerical evaluation of the matrices");
     }
 
   if (evolution_filename != "")

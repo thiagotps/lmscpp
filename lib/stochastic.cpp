@@ -382,15 +382,20 @@ namespace stochastic{
     return s.apply(x);
   }
 
-  DenseMatrix Experiment::sym2num(const DenseMatrix & m) const
+  nmatrix Experiment::sym2num(const DenseMatrix & m) const
   {
-    DenseMatrix tmp{m.nrows(), m.ncols()};
+    nmatrix tmp{m.nrows(), m.ncols()};
     for (auto i = 0; i < m.nrows(); i++)
       for (auto j = 0; j < m.ncols(); j++)
         {
-          tmp.set(i, j, fallxreplace(m.get(i, j),inivalsmap_, fallback_));
-          if (not is_a_Number(*tmp.get(i,j)))
-            throw runtime_error("It was not possible to convert expression " + tmp.get(i,j)->__str__() + " to number.");
+          RCP<const Basic> term{ fallxreplace(m.get(i, j),inivalsmap_, fallback_) };
+
+          if (auto dptr = dynamic_cast<const RealDouble *>(term.get()); dptr != nullptr)
+            tmp[i][j] = dptr->as_double();
+          else if (auto iptr = dynamic_cast<const Integer *>(term.get()); iptr != nullptr)
+            tmp[i][j] = iptr->as_int();
+          else
+            throw runtime_error{"It was not possible to convert expression " + m.get(i,j)->__str__() + " to number."};
         }
 
     return tmp;
@@ -423,10 +428,10 @@ namespace stochastic{
       {
         auto yk = *numstv;
         auto fm = yk.get(fi, 0), sm = yk.get(si, 0), tm = yk.get(ti, 0);
-        auto sd = sqrt(sm - pow(fm, 2_i));
-        auto sk = (tm - 3_i * fm * pow(sd, 2_i) - pow(fm, 3_i))/pow(sd, 3_i);
+        auto sd = sqrt(sm - pow(fm, 2));
+        auto sk = (tm - 3 * fm * pow(sd, 2) - pow(fm, 3))/pow(sd, 3);
 
-        os << idx << " " << *sk << endl;
+        os << idx << " " << sk << endl;
         ++numstv;
       }
   }

@@ -11,6 +11,7 @@
 #include <string>
 
 #include <lmscpp/utils.hpp>
+#include <lmscpp/nummatrix.hpp>
 
 namespace stochastic{
   using namespace std;
@@ -69,10 +70,12 @@ namespace stochastic{
   size_t coumpute_eqs(const vec_func &, const EquationSet&, const ExpectedOperator &);
   RCP<const Basic> expand(const RCP<const Basic>&, const EquationSet &);
 
+  using nmatrix = NumMatrix::NumMatrix<double>;
+
   class num_stv_iter
   {
-    const DenseMatrix& a_,b_;
-    DenseMatrix y_;
+    const nmatrix a_,b_;
+    nmatrix y_;
   public:
     using difference_type = ptrdiff_t;
     using value_type = DenseMatrix;
@@ -80,15 +83,13 @@ namespace stochastic{
     using reference = DenseMatrix&;
     using iterator_category = forward_iterator_tag;
 
-    num_stv_iter(const DenseMatrix& a, const DenseMatrix &b, const DenseMatrix &y0): a_{a}, b_{b}, y_{y0} {};
-    inline const DenseMatrix& operator*() const {return y_;};
+    num_stv_iter(const nmatrix& a, const nmatrix &b, const nmatrix &y0): a_{a}, b_{b}, y_{y0} {};
+    inline const nmatrix& operator*() const {return y_;};
 
     // Perform Yk+1 = A*Yk + B
-    inline const DenseMatrix& operator++()
+    inline const nmatrix& operator++()
     {
-      a_.mul_matrix(y_, y_);
-      y_.add_matrix(b_, y_);
-
+      y_ = a_ * y_ + b_;
       return y_;
     };
   };
@@ -104,7 +105,7 @@ namespace stochastic{
     const fallback_func_type fallback_; // Why I can't put a & here ?
 
   public:
-    DenseMatrix sym2num(const DenseMatrix&) const;
+    nmatrix sym2num(const DenseMatrix&) const;
 
     Experiment(const EquationSet & inieqs, const ExpectedOperator & E,
                const map_basic_basic& inivalsmap = map_basic_basic{},
@@ -118,10 +119,10 @@ namespace stochastic{
     inline const DenseMatrix & get_A() const {return A_;};
     inline const DenseMatrix & get_Yk() const {return Yk_;};
     inline const DenseMatrix & get_B() const {return B_;};
-    DenseMatrix get_num_A() const {return sym2num(A_);};
+    nmatrix get_num_A() const {return sym2num(A_);};
     DenseMatrix get_sym_Y0() const;
-    DenseMatrix get_num_Y0() const {return sym2num(get_sym_Y0());}
-    DenseMatrix get_num_B() const {return sym2num(B_);}
+    nmatrix get_num_Y0() const {return sym2num(get_sym_Y0());}
+    nmatrix get_num_B() const {return sym2num(B_);}
     inline size_t get_number_of_eqs() const {return number_of_eqs_;};
 
     void write_skewness(int niter,RCP<const Basic> randexpr, ofstream & os);

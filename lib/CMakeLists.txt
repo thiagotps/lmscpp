@@ -19,9 +19,7 @@ FetchContent_MakeAvailable(bitsery)
 
 find_package(SymEngine)
 
-add_library(stochastic stochastic.cpp utils.cpp nummatrix.cpp)
+add_library(stochastic stochastic.cpp utils.cpp)
 target_compile_features(stochastic PUBLIC cxx_std_17)
-target_include_directories(stochastic PUBLIC ../include)
-target_include_directories(stochastic PUBLIC ${SYMENGINE_INCLUDE_DIRS})
-target_link_libraries(stochastic PUBLIC ${SYMENGINE_LIBRARIES})
-target_link_libraries(stochastic PUBLIC Bitsery::bitsery)
+target_include_directories(stochastic PUBLIC ../include ${SYMENGINE_INCLUDE_DIRS})
+target_link_libraries(stochastic PUBLIC ${SYMENGINE_LIBRARIES} Bitsery::bitsery)

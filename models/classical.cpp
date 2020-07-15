@@ -271,9 +271,9 @@ int main(int argc, char ** argv)
     {
       ofstream os{nummatrix_filename, ofstream::out | ofstream::trunc};
       duration.reset();
-      os << todo.get_num_A() << endl;
-      os << todo.get_num_Y0() << endl;
-      os << todo.get_num_B() << endl;
+      os << todo.get_num_A() << "\n" << endl;
+      os << todo.get_num_Y0() << "\n" << endl;
+      os << todo.get_num_B() << "\n" << endl;
       duration.show("Numerical evaluation of the matrices");
     }
 
@@ -285,7 +285,7 @@ int main(int argc, char ** argv)
       num_stv_iter iter{todo.get_num_A(), todo.get_num_B(), todo.get_num_Y0()};
       for (auto i = 0; i < niter; i++)
         {
-          os << *iter << endl;
+          os << *iter << "\n" << endl;
           ++iter;
         }
       duration.show("Matrix evolution");

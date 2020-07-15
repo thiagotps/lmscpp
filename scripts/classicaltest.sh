@@ -11,7 +11,7 @@ do
 
     echo "Testing configuration L=$L M=$M"
 
-    RES=$(exec ${CLASSICAL_EXECUTABE} --force -L $L -M $M | grep NUMBER_OF_EQUATIONS | cut -d ' ' -f 2)
+    RES=$(exec ${CLASSICAL_EXECUTABE}  -L $L -M $M | grep NUMBER_OF_EQUATIONS | cut -d ' ' -f 2)
 
     [[ "$NUM" != "$RES" ]] && echo "Expected $NUM equations, got $RES" && exit 1
 done

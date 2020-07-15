@@ -86,7 +86,7 @@ namespace stochastic{
     // Perform Yk+1 = A*Yk + B
     inline const DenseMatrix& operator++()
     {
-      y_.mul_matrix(a_, y_);
+      a_.mul_matrix(y_, y_);
       y_.add_matrix(b_, y_);
 
       return y_;

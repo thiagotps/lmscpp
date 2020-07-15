@@ -93,8 +93,13 @@ int main(int argc, char ** argv)
   program.add_argument("--niter").help("Number of iterations. Only needed when --evolution is passed.").default_value(0)
     .action([](const string &val){return stoi(val);});
 
-  program.add_argument("--force")
-    .help("Force the computation of the equations instead of reading the cache. The cache is still written.")
+  program.add_argument("--readcache")
+    .help("Read cache if available.")
+    .default_value(false)
+    .implicit_value(true);
+
+  program.add_argument("--writecache")
+    .help("If the matrices was computed, instead of read from the cache, write them.")
     .default_value(false)
     .implicit_value(true);
 
@@ -112,7 +117,8 @@ int main(int argc, char ** argv)
   const string nummatrix_filename{program.get<string>("--nummatrix")};
   const string evolution_filename{program.get<string>("--evolution")};
   const int niter{program.get<int>("--niter")};
-  const bool force{program.get<bool>("--force")};
+  const bool readcache{program.get<bool>("--readcache")};
+  const bool writecache{program.get<bool>("--writecache")};
 
   const auto sigma{ symbol("σ_n") };
   map_basic_basic cache{ {sigma, number(0.001)} };
@@ -223,7 +229,7 @@ int main(int argc, char ** argv)
   {
     string filename{"cache"+to_string(L)+to_string(M)+".bin"};
     fstream fs{filename, fstream::binary | fstream::in};
-    if ((not force) and fs.is_open())
+    if (readcache and fs.is_open())
       {
         cout << "Using cached data..." << endl;
         duration.reset();
@@ -232,7 +238,7 @@ int main(int argc, char ** argv)
       }
     else
       {
-        if (not force)
+        if (readcache)
           cout << "It was not possible to open the cache. Computing equations..." << endl;
         else
           cout << "Computing equations..." << endl;
@@ -241,11 +247,15 @@ int main(int argc, char ** argv)
         todo.compute(states_vars(epislonk));
         duration.show("todo.compute()");
 
-        fs.open(filename, fstream::binary | fstream::out);
+        if (writecache)
+          {
+            cout << "Writing cache..." << endl;
+            fs.open(filename, fstream::binary | fstream::out);
 
-        duration.reset();
-        todo.save(fs);
-        duration.show("todo.save()");
+            duration.reset();
+            todo.save(fs);
+            duration.show("todo.save()");
+          }
       }
   }
 
@@ -275,7 +285,7 @@ int main(int argc, char ** argv)
       num_stv_iter iter{todo.get_num_A(), todo.get_num_B(), todo.get_num_Y0()};
       for (auto i = 0; i < niter; i++)
         {
-          cout << *iter << endl;
+          os << *iter << endl;
           ++iter;
         }
       duration.show("Matrix evolution");

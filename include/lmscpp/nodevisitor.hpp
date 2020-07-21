@@ -17,6 +17,8 @@ namespace NodeVisitor
   using namespace SymEngine;
   using namespace std;
 
+  // This is a visitor class that transverse the expression tree of a SymEngine object, creating a representation
+  // of the expression that can be saved and used later to reconstruct the original expression.
   struct Node: public BaseVisitor<Node>
   {
     enum class NodeType
@@ -28,31 +30,38 @@ namespace NodeVisitor
        INT,
        FUNC,
       };
+    // The type of the SymEngine object represented by this node.
     NodeType type;
+    // The name of the SymEngine object represented by this node.
+    // Only appliable if its is a SYM, INT or FUNC.
     string name{};
-    vector<Node> neighbours{};
+    // The vector of childs
+    vector<Node> childs{};
 
     Node() = default;
     Node(const RCP<const Basic> &b) {b->accept(*this);}
     bool operator==(const Node &n) const
     {
       return type == n.type and name == n.name
-        and neighbours == n.neighbours;
+        and childs == n.childs;
     }
     bool operator!=(const Node &n) const
     {
       return not (*this == n);
     }
 
+    // Return the expression being represented by the tree whose root is the current Node.
     RCP<const Basic> to_basic() const;
 
+
+    // This helper method populates the vector 'childs' of the current Node.
     void parse(const Basic & expr)
     {
       for (const auto & e : expr.get_args())
         {
           Node n;
           e->accept(n);
-          neighbours.emplace_back(move(n));
+          childs.emplace_back(move(n));
         }
     }
 
@@ -96,12 +105,12 @@ namespace NodeVisitor
     template<typename T>
     void bvisit(const T &e)
     {
-      throw runtime_error{"Could make a tree expression from " + e.__str__()};
+      throw runtime_error{"Can not make a tree expression from " + e.__str__()};
     }
 
     template<typename S>
     void serialize(S& s){
-      s(type, name, neighbours);
+      s(type, name, childs);
     }
   };
 
@@ -112,16 +121,16 @@ namespace NodeVisitor
       {
       case NodeType::ADD:
         res = zero;
-        for (const auto & n : neighbours)
+        for (const auto & n : childs)
           res = add(res, n.to_basic());
         break;
       case NodeType::MUL:
         res = one;
-        for (const auto & n : neighbours)
+        for (const auto & n : childs)
           res = mul(res, n.to_basic());
         break;
       case NodeType::POW:
-        res = pow(neighbours[0].to_basic(), neighbours[1].to_basic());
+        res = pow(childs[0].to_basic(), childs[1].to_basic());
         break;
       case NodeType::SYM:
         res = symbol(name);
@@ -130,7 +139,7 @@ namespace NodeVisitor
         res = integer(name);
         break;
       case NodeType::FUNC:
-        auto fx{function_symbol(name,neighbours[0].to_basic())};
+        auto fx{function_symbol(name,childs[0].to_basic())};
         res = fx;
         break;
 
@@ -138,6 +147,7 @@ namespace NodeVisitor
     return res;
   }
 
+  // Given a DenseMatrix, returns "matrix" of Nodes representing each element of the original matrix.
   vector<vector<Node>> matrix2vecnode(const DenseMatrix & dm)
   {
     vector<vector<Node>> vec(dm.nrows());
@@ -148,6 +158,7 @@ namespace NodeVisitor
     return vec;
   }
 
+  // Given a "matrix" of Nodes, reconstructs the DenseMatrix being represented by these Nodes.
   DenseMatrix vecnode2matrix(const vector<vector<Node>> & vec)
   {
     auto n{vec.size()}, m{vec.at(0).size()};

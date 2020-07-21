@@ -32,6 +32,7 @@ namespace stochastic{
     auto m = rcp_static_cast<const Mul>(mulexpr);
     auto mulvec = m->get_args();
 
+    // TODO: This insert is a good idea ?
     if (m->get_coef()->is_one())
       mulvec.insert(begin(mulvec), one);
 
@@ -54,10 +55,15 @@ namespace stochastic{
   pair<RCP<const Number>, RCP<const Basic>> max_cnt_var(const vec_basic &v){
     pair<RCP<const Number>, RCP<const Basic>> coef{NegInf,NegInf};
 
-    for (auto & rv: v){
+    for (const auto & rv: v){
       auto [b,n] = get_base_exp(rv);
+
+      if (not is_a<FunctionSymbol>(*b))
+        throw runtime_error{"The base of the power is not an FuntionSymbol"};
+
       auto cp = get_addtuple(b->get_args()[0]);
 
+      // TODO: convert this dynamic cast to a static cast
       auto cpn = rcp_dynamic_cast<const Number>(cp[0]);
       if (cpn->sub(*coef.first)->is_positive()){
         coef.first = cpn;
@@ -74,6 +80,7 @@ namespace stochastic{
       expr = ptr->get_args()[0];
 
     auto rvvec = get_multuple(expr);
+    // NOTE: Maybe this erase could be avoided.
     rvvec.erase(begin(rvvec));
 
     return max_cnt_var(rvvec);
@@ -121,10 +128,6 @@ namespace stochastic{
     return v;
   }
 
-  // Give a expression like 2*gamma*E(v(k+1)*v(k+2)) + 3*alpha + 4, this function
-  // gives a vector of tuples in which the first term of each tuple is the multiplier constant
-  // and the second is the state variable's hash. The sum constant, in this example 3*alpha + 4, is always
-  // placed in the first slot of the tuple whereas its second element is the actual vector.
   tuple<RCP<const Basic>,vector<tuple<RCP<const Basic>,size_t>>>
   cnt_st_terms(const RCP<const Basic> & expr)
   {

@@ -37,10 +37,15 @@ namespace stochastic{
 
    RCP<const Basic> StochasticProcess::moment(const RCP<const Basic> &f) {
     auto [b,n] = get_base_exp(f);
-    auto bf = rcp_dynamic_cast<const FunctionSymbol>(b);
-    auto m = moment_[bf->get_name()];
-    //  return m(bf->get_args(), down_cast<Integer>(n));
-    return m(bf->get_args(), rcp_dynamic_cast<const Integer>(n));
+    if (is_a<const FunctionSymbol>(*b))
+      {
+        auto bf = rcp_static_cast<const FunctionSymbol>(b);
+        auto m = moment_[bf->get_name()];
+        //  return m(bf->get_args(), down_cast<Integer>(n));
+        return m(bf->get_args(), rcp_dynamic_cast<const Integer>(n));
+      }
+    else
+      throw runtime_error{"StochasticProcess::moment received something that is not a random variable."};
   }
 
   bool StochasticProcess::is_random(const RCP<const Basic> &sym){
@@ -74,6 +79,7 @@ namespace stochastic{
     // is passed in. If the Pow's base is not a FunctionSymbol, this will raise a exception too.
     auto convert =  [](const Basic &arg) -> const FunctionSymbol& {
                       if (is_a<Pow>(arg)) {
+                        // TODO: These dynamic_casts can be transformed into static_casts.
                         auto base = static_cast<const Pow&>(arg).get_base();
                         return dynamic_cast<const FunctionSymbol&>(*base);
                       }
@@ -94,6 +100,7 @@ namespace stochastic{
     RCP<const Basic> not_ind{one};
 
     auto rvs{get_multuple(m)};
+    // NOTE: Maybe this is not a good thing to do.
     rvs.erase(begin(rvs));
 
 
@@ -124,12 +131,14 @@ namespace stochastic{
     vec_basic addtuple{get_addtuple(SymEngine::expand(term->get_args()[0]))};
     auto s{addtuple[0]};
 
+    // NOTE: Maybe this is a bad idea.
     addtuple.erase(begin(addtuple));
     for (auto &addterm : addtuple){
       vec_basic multuple{get_multuple(addterm)};
       auto cnts = multuple[0];
       RCP<const Basic> not_cnts{one};
 
+    // NOTE: Maybe this is a bad idea.
       multuple.erase(begin(multuple));
       for (auto &multerm : multuple){
         if (StochasticProcess::is_random(multerm))

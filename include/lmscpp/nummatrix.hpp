@@ -1,3 +1,8 @@
+/*
+ * This header declares our numerical matrix library.
+ * It is small and self explanatory.
+  */
+
 #ifndef __NUMMATRIX_H_
 #define __NUMMATRIX_H_
 

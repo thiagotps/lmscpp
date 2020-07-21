@@ -1,3 +1,8 @@
+/*
+ * It is just a helper header for aiding the construction of models.
+ * It should not be used inside the library.
+  */
+
 #ifndef __OPERATORS_H_
 #define __OPERATORS_H_
 

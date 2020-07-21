@@ -27,11 +27,11 @@ namespace stochastic{
   {
     moment_[name_] = moment;
   }
-  RCP<const FunctionSymbol> StochasticProcess::operator()(const vec_basic &arg){
+  RCP<const FunctionSymbol> StochasticProcess::operator()(const vec_basic &arg) const{
     return make_rcp<const FunctionSymbol>(name_, arg);
   }
 
-  RCP<const FunctionSymbol> StochasticProcess::operator()(const RCP<const Basic> &arg){
+  RCP<const FunctionSymbol> StochasticProcess::operator()(const RCP<const Basic> &arg) const {
     return make_rcp<const FunctionSymbol>(name_, arg);
   }
 
@@ -220,7 +220,6 @@ namespace stochastic{
         s.pop_front();
         if (not eqs.contains(t))
           {
-            // cout << *t << endl;
             // NOTE: The result of this expectation operator should be a FunctionSymbol
             // This should not result in a number. Maybe I should do the expansion inside
             // the operator () of E instead of calling it separately.

@@ -46,9 +46,9 @@ namespace stochastic{
     StochasticProcess(string name, moment_type moment);
 
     // Return a function symbol with the same name of this process and with 'arg' as the argument list.
-    RCP<const FunctionSymbol> operator()(const vec_basic &arg);
+    RCP<const FunctionSymbol> operator()(const vec_basic &arg) const;
     // The same from above, but with only one argument.
-    RCP<const FunctionSymbol> operator()(const RCP<const Basic> &arg);
+    RCP<const FunctionSymbol> operator()(const RCP<const Basic> &arg) const;
 
     // Receive a Basic object 'f' representing a random variable. It can be the FunctionSymbol returned
     // by the operator () or a Pow in which the base is a FunctionSymbol returned from that operator.

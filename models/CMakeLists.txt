@@ -7,4 +7,6 @@ FetchContent_MakeAvailable(argparse)
 
 add_executable(classical classical.cpp)
 target_link_libraries(classical PRIVATE stochastic argparse::argparse)
-# add_test(NAME testnode COMMAND testnode)
+
+add_executable(skewness skewness.cpp)
+target_link_libraries(skewness PRIVATE stochastic argparse::argparse)

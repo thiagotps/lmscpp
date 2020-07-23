@@ -18,8 +18,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(bitsery)
 
 find_package(SymEngine)
+find_package(Threads)
 
 add_library(stochastic stochastic.cpp utils.cpp)
 target_compile_features(stochastic PUBLIC cxx_std_17)
 target_include_directories(stochastic PUBLIC ../include ${SYMENGINE_INCLUDE_DIRS})
-target_link_libraries(stochastic PUBLIC ${SYMENGINE_LIBRARIES} Bitsery::bitsery)
+target_link_libraries(stochastic PUBLIC ${SYMENGINE_LIBRARIES} Bitsery::bitsery ${CMAKE_THREAD_LIBS_INIT})

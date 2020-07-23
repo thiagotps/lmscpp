@@ -267,7 +267,7 @@ int main(int argc, char ** argv)
   seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(E(pow(wtil[0](k), 2_i))));
   seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(E(pow(wtil[0](k), 3_i))));
 
-  read_write_compute("", readcache, writecache, todo, seeds);
+  read_write_compute("cache" + to_string(N) + to_string(M) + ".bin", readcache, writecache, todo, seeds);
   cout << "NUMBER_OF_EQUATIONS: " << todo.get_number_of_eqs() << endl;
 
   MeasureDuration duration{};

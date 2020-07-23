@@ -198,8 +198,10 @@ namespace stochastic{
     nmatrix get_num_B() const {return sym2num(B_);}
     inline size_t get_number_of_eqs() const {return number_of_eqs_;};
 
-    void write_skewness(int niter,RCP<const Basic> randexpr, ofstream & os);
+    void write_skewness(int niter,RCP<const Basic> randexpr, ofstream & os) const;
+    void write_expression(int niter,RCP<const Basic> randexpr, ofstream & os) const;
   };
+
 }
 
 

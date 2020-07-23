@@ -387,7 +387,7 @@ namespace stochastic{
   }
 
   // Should throw if randexpr is not valid.
-  void Experiment::write_skewness(int niter,RCP<const Basic> randexpr, ofstream & os)
+  void Experiment::write_skewness(int niter,RCP<const Basic> randexpr, ofstream & os) const
   {
     using namespace OverloadedOperators;
     int fi{-1}, si{-1}, ti{-1};
@@ -420,4 +420,36 @@ namespace stochastic{
         ++numstv;
       }
   }
+
+  void Experiment::write_expression(int niter,RCP<const Basic> expr, ofstream & os) const
+  {
+    auto stv = states_vars(expr);
+    vector<pair<RCP<const Basic>, int>> vp;
+    for (const auto & tt : stv)
+      {
+        auto t = canonical_form(tt).first;
+        for (auto i = 0; i < Yk_.nrows(); i++)
+          if (eq(*t, *Yk_.get(i, 0)))
+            {
+              vp.emplace_back(t, i);
+              break;
+            }
+      }
+
+    num_stv_iter numstv{ get_num_A(),get_num_B(), get_num_Y0() };
+    for (int idx{0}; idx < niter; ++idx)
+      {
+        auto yk = *numstv;
+        map_basic_basic subs_dict{inivalsmap_};
+        for (const auto &pp : vp)
+          subs_dict[pp.first] = number(yk[pp.second][0]);
+
+        auto res = fallxreplace(expr,subs_dict, fallback_);
+        if (not is_a_Number(*res))
+          throw runtime_error{"Experiment::write_expression: Failed to convert expression in number"};
+        os << idx << " " << *res << endl;
+        ++numstv;
+      }
+  }
+
 }

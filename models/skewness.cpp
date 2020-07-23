@@ -117,19 +117,19 @@ int main(int argc, char ** argv)
   program.add_argument("--writecache")
     .help("The cache file to write.")
     .default_value(""s)
-    .action([](const string &val){return stoi(val);});
+    .action([](const string &val){return val;});
 
   program.add_argument("-N").help("filter length").required().action([](const string &val){return stoi(val);});
 
   program.add_argument("-M").help("data length").required().action([](const string &val){return stoi(val);});
 
-  program.add_argument("-b","--beta").help("β").required().default_value(0.0)
+  program.add_argument("-b","--beta").help("β").default_value(0.0)
     .action([](const string &val){return stod(val);});
 
-  program.add_argument("--sv2","--sigmav2").help("variance (σᵥ²)").required().default_value(0.0)
+  program.add_argument("--sv2","--sigmav2").help("variance (σᵥ²)").default_value(0.0)
     .action([](const string &val){return stod(val);});
 
-  program.add_argument("-n","--niter").help("Number of iterations.").required().default_value(0)
+  program.add_argument("-n","--niter").help("Number of iterations.").default_value(0)
     .action([](const string &val){return stoi(val);});
 
   program.add_argument("-o","--output").help("The file where the output will be stored.").default_value(""s)
@@ -295,10 +295,21 @@ int main(int argc, char ** argv)
                                   return null;
                                  }};
 
+  RCP<const Basic> mse_expanded{null};
   vec_func seeds{};
-  seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(E(wtil[0](k))));
-  seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(E(pow(wtil[0](k), 2_i))));
-  seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(E(pow(wtil[0](k), 3_i))));
+
+  if (out_mode == outmode::SK)
+    {
+      seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(E(wtil[0](k))));
+      seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(E(pow(wtil[0](k), 2_i))));
+      seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(E(pow(wtil[0](k), 3_i))));
+    }
+  else if (out_mode == outmode::MSE)
+    {
+      auto ee = rcp_dynamic_cast<const FunctionSymbol>( E(expand(pow(inn + v(k), 2_i ))) );
+      mse_expanded = E.expand(ee);
+      seeds = states_vars(mse_expanded);
+    }
 
   read_write_compute(cachename, cache_mode, todo, seeds);
   cout << "NUMBER_OF_EQUATIONS: " << todo.get_number_of_eqs() << endl;
@@ -315,7 +326,11 @@ int main(int argc, char ** argv)
           duration.show("todo.write_skewness()");
         }
       else if (out_mode == outmode::MSE)
-        throw runtime_error{"MSE output is not implemented."};
+        {
+          duration.reset();
+          todo.write_expression(niter, mse_expanded, os);
+          duration.show("todo.write_skewness()");
+        }
     }
   return 0;
 }

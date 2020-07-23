@@ -51,33 +51,40 @@ uintmax_t numfactorial(uintmax_t n)
 // NOTE: This a redefininition. Maybe I should create a header file with definitions.
 using vec_func = vector<RCP<const FunctionSymbol>>;
 
-// NOTE: This should be shared with classical.cpp
-void read_write_compute(string filename, bool readcache, bool writecache, Experiment& todo, const vec_func & seeds)
+enum cachemode
+  {
+   IGNORE=0,
+   READ,
+   WRITE,
+  };
+//  NOTE: This should be shared with classical.cpp
+void read_write_compute(const string& cachename, cachemode cmode, Experiment& todo, const vec_func & seeds)
 {
   MeasureDuration duration{};
-  fstream fs{filename, fstream::binary | fstream::in};
-  if (readcache and fs.is_open())
+
+  if (cmode == cachemode::READ)
     {
-      cout << "Using cached data..." << endl;
-      duration.reset();
-      todo.load(fs);
-      duration.show("todo.load()");
+      fstream fs{cachename, fstream::binary | fstream::in};
+      if (fs.is_open())
+        {
+          cout << "Using cached data..." << endl;
+          duration.reset();
+          todo.load(fs);
+          duration.show("todo.load()");
+        }
+      else
+        throw runtime_error{"It was not possible to open cache " + cachename + " for reading."};
     }
   else
     {
-      if (readcache)
-        cout << "It was not possible to open the cache. Computing equations..." << endl;
-      else
-        cout << "Computing equations..." << endl;
-
       duration.reset();
       todo.compute(seeds);
       duration.show("todo.compute()");
 
-      if (writecache)
+      if (cmode == cachemode::WRITE)
         {
           cout << "Writing cache..." << endl;
-          fs.open(filename, fstream::binary | fstream::out);
+          fstream fs{cachename, fstream::binary | fstream::out};
 
           duration.reset();
           todo.save(fs);
@@ -88,49 +95,64 @@ void read_write_compute(string filename, bool readcache, bool writecache, Experi
 
 enum indmode
   {
-   IA = 1,
+   IA = 0,
    EEA,
   };
+
+enum outmode
+  {
+   SK = 0,
+   MSE,
+  };
+
 
 int main(int argc, char ** argv)
 {
   argparse::ArgumentParser program(argv[0]);
   program.add_argument("--readcache")
-    .help("Read cache if available.")
-    .default_value(false)
-    .implicit_value(true);
+    .help("The cache file to use.")
+    .default_value(""s)
+    .action([](const string &val){return val;});
 
   program.add_argument("--writecache")
-    .help("If the matrices was computed, instead of read from the cache, write them.")
-    .default_value(false)
-    .implicit_value(true);
+    .help("The cache file to write.")
+    .default_value(""s)
+    .action([](const string &val){return stoi(val);});
 
   program.add_argument("-N").help("filter length").required().action([](const string &val){return stoi(val);});
 
   program.add_argument("-M").help("data length").required().action([](const string &val){return stoi(val);});
 
-  program.add_argument("--beta").help("β").required().default_value(0.0)
+  program.add_argument("-b","--beta").help("β").required().default_value(0.0)
     .action([](const string &val){return stod(val);});
 
-  program.add_argument("--sigmav2").help("variance (σᵥ²)").required().default_value(0.0)
+  program.add_argument("--sv2","--sigmav2").help("variance (σᵥ²)").required().default_value(0.0)
     .action([](const string &val){return stod(val);});
 
-  program.add_argument("--niter").help("Number of iterations.").required().default_value(0)
+  program.add_argument("-n","--niter").help("Number of iterations.").required().default_value(0)
     .action([](const string &val){return stoi(val);});
 
-  program.add_argument("--sk").help("The file where the skewness' evolution will be stored.").default_value(""s)
+  program.add_argument("-o","--output").help("The file where the output will be stored.").default_value(""s)
     .action([](const string &val){return val;});
 
-  program.add_argument("--mse").help("The file where the MSE's evolution will be stored.").default_value(""s)
-    .action([](const string &val){return val;});
-
-  program.add_argument("--mode").help("ia or eea").required()
+  program.add_argument("--indmode").help("ia or eea").required()
     .action([](const string &val)
             {
               static const map<string, indmode> choices {{"ia", indmode::IA}, {"eea", indmode::EEA}};
               auto it = choices.find(val);
               if (it == choices.end())
-                throw runtime_error{"Invalid value for --mode"};
+                throw runtime_error{"Invalid value for --iamode"};
+
+              return it->second;
+            });
+
+  program.add_argument("--outmode").help("sk or mse").required()
+    .action([](const string &val)
+            {
+              static const map<string, outmode> choices {{"sk", outmode::SK}, {"mse", outmode::MSE}};
+              auto it = choices.find(val);
+              if (it == choices.end())
+                throw runtime_error{"Invalid value for --outmode"};
 
               return it->second;
             });
@@ -145,16 +167,27 @@ int main(int argc, char ** argv)
     exit(1);
   }
 
-  const int N{program.get<int>("-N")};
-  const int M{program.get<int>("-M")};
-  const double beta{program.get<double>("--beta")};
-  const double sigmav2{program.get<double>("--sigmav2")};
-  const int niter{program.get<int>("--niter")};
-  const string sk_filename{program.get<string>("--sk")};
-  const string mse_filename{program.get<string>("--mse")};
-  const bool readcache{program.get<bool>("--readcache")};
-  const bool writecache{program.get<bool>("--writecache")};
-  const auto mode = program.get<indmode>("--mode");
+  const auto readcache{program.get<string>("--readcache")};
+  const auto writecache{program.get<string>("--writecache")};
+  const auto N{program.get<int>("-N")};
+  const auto M{program.get<int>("-M")};
+  const auto beta{program.get<double>("--beta")};
+  const auto sigmav2{program.get<double>("--sigmav2")};
+  const auto niter{program.get<int>("--niter")};
+  const auto ofilename {program.get<string>("--output")};
+  const auto ind_mode = program.get<indmode>("--indmode");
+  const auto out_mode = program.get<outmode>("--outmode");
+
+  const string cachename{ (not readcache.empty()) ? readcache : writecache };
+  const auto cache_mode = [&]()
+                          {
+                            if (not readcache.empty())
+                              return cachemode::READ;
+                            if (not writecache.empty())
+                              return cachemode::WRITE;
+
+                            return cachemode::IGNORE;
+                          }();
 
   const auto sigmav{ symbol("σ_v") }, step_size{ symbol("β") }, k{ symbol("k") };
   map_basic_basic cache{ {sigmav, number(sqrt(sigmav2))}, {step_size, number(beta)} };
@@ -187,8 +220,8 @@ int main(int argc, char ** argv)
                             return null;
                            });
 
-  ExpectedOperator E{[mode](const FunctionSymbol& x, const FunctionSymbol& y){
-                             auto xy = [mode](const FunctionSymbol &x, const FunctionSymbol &y)
+  ExpectedOperator E{[ind_mode](const FunctionSymbol& x, const FunctionSymbol& y){
+                             auto xy = [ind_mode](const FunctionSymbol &x, const FunctionSymbol &y)
                                        {
                                          auto xname{x.get_name()};
                                          auto yname{y.get_name()};
@@ -200,9 +233,9 @@ int main(int argc, char ** argv)
                                          // comparasion.
                                          if (xname.find("ẅ") != string::npos and yname == "u")
                                            {
-                                             if (mode == indmode::EEA)
+                                             if (ind_mode == indmode::EEA)
                                                return not rcp_dynamic_cast<const Integer>(expand(x.get_args()[0] - y.get_args()[0]))->is_positive();
-                                             else if (mode == indmode::IA)
+                                             else if (ind_mode == indmode::IA)
                                                return true;
                                            }
 
@@ -267,17 +300,22 @@ int main(int argc, char ** argv)
   seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(E(pow(wtil[0](k), 2_i))));
   seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(E(pow(wtil[0](k), 3_i))));
 
-  read_write_compute("cache" + to_string(N) + to_string(M) + ".bin", readcache, writecache, todo, seeds);
+  read_write_compute(cachename, cache_mode, todo, seeds);
   cout << "NUMBER_OF_EQUATIONS: " << todo.get_number_of_eqs() << endl;
 
   MeasureDuration duration{};
-  if (not sk_filename.empty())
+  if (not ofilename.empty())
     {
-      ofstream os{sk_filename, ofstream::out | ofstream::trunc};
+      ofstream os{ofilename, ofstream::out | ofstream::trunc};
 
-      duration.reset();
-      todo.write_skewness(niter, wtil[0](k), os);
-      duration.show("todo.write_skewness()");
+      if (out_mode == outmode::SK)
+        {
+          duration.reset();
+          todo.write_skewness(niter, wtil[0](k), os);
+          duration.show("todo.write_skewness()");
+        }
+      else if (out_mode == outmode::MSE)
+        throw runtime_error{"MSE output is not implemented."};
     }
   return 0;
 }

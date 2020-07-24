@@ -2,6 +2,7 @@
 #include <fstream>
 #include <chrono>
 
+#include <stdexcept>
 #include <symengine/expression.h>
 #include <symengine/functions.h>
 #include <symengine/symbol.h>
@@ -46,6 +47,11 @@ uintmax_t numfactorial(uintmax_t n)
       n--;
     }
   return f;
+}
+
+uintmax_t num_doublefactorial(uintmax_t n)
+{
+  return n <= 1 ? 1 : n*num_doublefactorial(n - 2);
 }
 
 // NOTE: This a redefininition. Maybe I should create a header file with definitions.
@@ -105,6 +111,11 @@ enum outmode
    MSE,
   };
 
+enum distmode
+  {
+   GAUSS = 0,
+   LAP,
+  };
 
 int main(int argc, char ** argv)
 {
@@ -157,6 +168,17 @@ int main(int argc, char ** argv)
               return it->second;
             });
 
+  program.add_argument("-d", "--dist").help("gauss or lap")
+    .default_value(distmode::GAUSS)
+    .action([](const string &val)
+            {
+              static const map<string, distmode> choices {{"gauss", distmode::GAUSS}, {"lap", distmode::LAP}};
+              auto it = choices.find(val);
+              if (it == choices.end())
+                throw runtime_error{"Invalid value for --dist"};
+
+              return it->second;
+            });
 
 
   try {
@@ -177,6 +199,7 @@ int main(int argc, char ** argv)
   const auto ofilename {program.get<string>("--output")};
   const auto ind_mode = program.get<indmode>("--indmode");
   const auto out_mode = program.get<outmode>("--outmode");
+  const auto dist_mode = program.get<distmode>("--dist");
 
   const string cachename{ (not readcache.empty()) ? readcache : writecache };
   const auto cache_mode = [&]()
@@ -281,15 +304,24 @@ int main(int argc, char ** argv)
   for (auto i = 0; i < N; i++)
     eqs.setitem(wtil[i](k+one), wtil[i](k) - step_size*x(k - integer(i)) * inn + step_size*v(k)*x(k - integer(i)));
 
-  Experiment todo{eqs, E, cache, [](const Symbol & x) -> RCP<const Basic>
+  Experiment todo{eqs, E, cache, [dist_mode](const Symbol & x) -> RCP<const Basic>
                                  {
-                                  static const double scale = 1.0/sqrt(2);
                                   auto name = x.__str__();
                                   if (name.size() >= 4 and name.substr(0, 2) == "γ")
                                     {
                                       auto p{ stoll(name.substr(3)) };
-                                      auto res = numfactorial(p)*pow(scale, p);
-                                      return number(res);
+                                      if (dist_mode == distmode::LAP)
+                                        {
+                                          static const double scale{ 1.0/sqrt(2) };
+                                          auto res = numfactorial(p)*pow(scale, p);
+                                          return number(res);
+                                        }
+                                      else if (dist_mode == distmode::GAUSS)
+                                        {
+                                          static constexpr double sd{1.0};
+                                          auto res = pow(sd, p) * num_doublefactorial(p - 1);
+                                          return number(res);
+                                        }
                                     }
 
                                   return null;
@@ -318,6 +350,11 @@ int main(int argc, char ** argv)
   if (not ofilename.empty())
     {
       ofstream os{ofilename, ofstream::out | ofstream::trunc};
+      if (!os)
+        {
+          cerr << "It was not possible to open file " << ofilename << endl;
+          return 1;
+        }
 
       if (out_mode == outmode::SK)
         {

@@ -1,0 +1,43 @@
+#+TITLE: LMSCPP
+
+[[https://img.shields.io/badge/license-MIT-green]]
+
+* Installation
+
+The following instructions will install all executables defined in the folder *models* to the
+folder *.local/bin* in your home directory. So it is important to have the folder *~/.local/bin* in your
+*PATH* environmental variable.
+
+#+BEGIN_SRC bash
+git clone "https://github.com/thiagotps/lmscpp" .
+cd lmscpp
+cmake -DCMAKE_INSTALL_PREFIX=~/.local -S . -B build
+cmake --build build -j n # where 'n' must be replaced by the number of cores in your machine
+cmake --install build --component lmscpp
+#+END_SRC
+
+This project includes some tests for make sure that everything is working properly.
+To run the tests, just execute *ctest -V* inside the /build/ directory.
+
+A good way for learning how to use the library defined in /lib/ is to read /classical.cpp/ or /skewness.cpp/ inside the
+/models/ folder. To learn how to use the executables defined by these source files, read the /.sh/ tests in the /scripts/ folder.
+
+As an example, the *skewness* binary has the following options. Other executables can show a similar help message
+by passing the /--help/ flag.
+#+BEGIN_SRC text
+Usage: /home/thiago/.local/bin/skewness [options]
+
+Optional arguments:
+-h --help       	show this help message and exit
+--readcache     	The cache file to use.
+--writecache    	The cache file to write.
+-N              	filter length[Required]
+-M              	data length[Required]
+-b --beta       	β
+--sv2 --sigmav2 	variance (σᵥ²)
+-n --niter      	Number of iterations.
+-o --output     	The file where the output will be stored.
+--indmode       	ia or eea[Required]
+--outmode       	sk or mse[Required]
+-d --dist       	gauss or lap
+#+END_SRC

@@ -5,6 +5,8 @@ include(FetchContent)
 FetchContent_Declare(
   symengine
   GIT_REPOSITORY https://github.com/symengine/symengine
+  # NOTE: There is something preventing version v0.6.0 of being properly configured by CMAKE
+  # Menwhile we will just use the master version and wait until a new stable version is released
   # GIT_TAG v0.6.0
   )
 FetchContent_MakeAvailable(symengine)

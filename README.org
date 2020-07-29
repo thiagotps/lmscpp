@@ -9,7 +9,7 @@ folder *.local/bin* in your home directory. So it is important to have the folde
 *PATH* environmental variable.
 
 #+BEGIN_SRC bash
-git clone "https://github.com/thiagotps/lmscpp" .
+git clone "https://github.com/thiagotps/lmscpp"
 cd lmscpp
 cmake -DCMAKE_INSTALL_PREFIX=~/.local -S . -B build
 cmake --build build -j n # where 'n' must be replaced by the number of cores in your machine

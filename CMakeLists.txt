@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.14)
 
 project (lmscpp VERSION 0.1
   DESCRIPTION "An implementation of Douglas Scott's exact expectation analysis"

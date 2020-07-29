@@ -64,6 +64,7 @@ struct neg_idx_vector: public vector<T>
 
 struct result_struct
 {
+  // NOTE: This could be replaced by a valarray
   vector<double> cm1, cm2, cm3, error_square, pdf;
 };
 

@@ -212,12 +212,12 @@ int number_of_cpu() {
 int main(int argc, char **argv)
 {
   argparse::ArgumentParser program(argv[0]);
-  program.add_argument("--filter-length")
+  program.add_argument("--filter-length","-N")
     .help("filter length ")
     .required()
     .action([](const string& val){return stoi(val);});
 
-  program.add_argument("--data-length")
+  program.add_argument("--data-length", "-M")
     .help("data model length ")
     .required()
     .action([](const string& val){return stoi(val);});
@@ -237,7 +237,7 @@ int main(int argc, char **argv)
     .required()
     .action([](const string& val){return stod(val);});
 
-  program.add_argument("--sigmav2")
+  program.add_argument("--sigmav2","--sv2")
     .help("variance (σᵥ²) ")
     .required()
     .action([](const string& val){return stod(val);});
@@ -246,27 +246,27 @@ int main(int argc, char **argv)
   // pdf parameters.
   program.add_argument("--pdf-instant")
     .help("The instant k to which the estimated PDF refers to.")
-    .default_value(0)
+    .default_value(-1)
     .action([](const string& val){return stoi(val);});
 
   program.add_argument("--pdf-start")
     .help("The first sample of the PDF to generate.")
-    .default_value(0.0)
+    .default_value(-1.0)
     .action([](const string& val){return stod(val);});
 
   program.add_argument("--pdf-end")
     .help("The last sample of the PDF to generate.")
-    .default_value(0.0)
+    .default_value(-1.0)
     .action([](const string& val){return stod(val);});
 
   program.add_argument("--pdf-samples")
     .help("The number of samples to describe the PDF in the interval [pdf-start, pdf-end]")
-    .default_value(0)
+    .default_value(-1)
     .action([](const string& val){return stoi(val);});
 
   program.add_argument("--kernel-exp")
     .help("The value of the standard-deviation of the gaussian kernel will be pow(10, kernel_exp).")
-    .default_value(0)
+    .default_value(-1)
     .action([](const string& val){return stoi(val);});
 
   program.add_argument("--pdf-file")
@@ -285,7 +285,7 @@ int main(int argc, char **argv)
               return val;
             });
 
-  program.add_argument("--skewness-file")
+  program.add_argument("--skewness-file","--sk-file")
     .help("the file where the evolution of the skewness of the first filter's coefficient will be stored")
     .default_value(string(""))
     .action([](const string& val){return val;});
@@ -331,6 +331,11 @@ int main(int argc, char **argv)
   string pdf_file = program.get<string>("--pdf-file");
   string dist = program.get<string>("--dist");
   string w_file = program.get<string>("--wfile");
+
+  if (not pdf_file.empty())
+    if (pdf_instant < 0 or pdf_start < 0 or pdf_end < 0 or pdf_samples < 0 or kernel_exp < 0)
+      throw runtime_error{"The following options are needed when using --pdf-file: --pdf-instant, --pdf-start, "s +
+          "--pdf-end, --pdf-samples, --kernel-exp"s};
 
   // The initializer {} avoids implicit conversion.
   ull indv_samples{ nsamples/NCPU };

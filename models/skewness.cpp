@@ -85,13 +85,15 @@ enum outmode
 
 enum distmode
   {
-   GAUSS = 0,
+   UNSPECIFIED = 0,
+   GAUSS,
    LAP,
   };
 
 int main(int argc, char ** argv)
 {
   argparse::ArgumentParser program(argv[0]);
+
   program.add_argument("--readcache")
     .help("The cache file to use.")
     .default_value(""s)
@@ -105,18 +107,6 @@ int main(int argc, char ** argv)
   program.add_argument("-N").help("filter length").required().action([](const string &val){return stoi(val);});
 
   program.add_argument("-M").help("data length").required().action([](const string &val){return stoi(val);});
-
-  program.add_argument("-b","--beta").help("β").default_value(0.0)
-    .action([](const string &val){return stod(val);});
-
-  program.add_argument("--sv2","--sigmav2").help("variance (σᵥ²)").default_value(0.0)
-    .action([](const string &val){return stod(val);});
-
-  program.add_argument("-n","--niter").help("Number of iterations.").default_value(0)
-    .action([](const string &val){return stoi(val);});
-
-  program.add_argument("-o","--output").help("The file where the output will be stored.").default_value(""s)
-    .action([](const string &val){return val;});
 
   program.add_argument("--indmode").help("ia or eea").required()
     .action([](const string &val)
@@ -140,8 +130,20 @@ int main(int argc, char ** argv)
               return it->second;
             });
 
+  program.add_argument("-b","--beta").help("β").default_value(-1.0)
+    .action([](const string &val){return stod(val);});
+
+  program.add_argument("--sv2","--sigmav2").help("variance (σᵥ²)").default_value(-1)
+    .action([](const string &val){return stod(val);});
+
+  program.add_argument("-n","--niter").help("Number of iterations.").default_value(-1)
+    .action([](const string &val){return stoi(val);});
+
+  program.add_argument("-o","--output").help("The file where the output will be stored.").default_value(""s)
+    .action([](const string &val){return val;});
+
   program.add_argument("-d", "--dist").help("gauss or lap")
-    .default_value(distmode::GAUSS)
+    .default_value(distmode::UNSPECIFIED)
     .action([](const string &val)
             {
               static const map<string, distmode> choices {{"gauss", distmode::GAUSS}, {"lap", distmode::LAP}};
@@ -172,6 +174,12 @@ int main(int argc, char ** argv)
   const auto ind_mode = program.get<indmode>("--indmode");
   const auto out_mode = program.get<outmode>("--outmode");
   const auto dist_mode = program.get<distmode>("--dist");
+
+  if (not ofilename.empty())
+    if (beta < 0 or sigmav2 < 0 or niter < 0 or dist_mode == distmode::UNSPECIFIED)
+      throw runtime_error{"Missing some of the following: --beta, --sv2, --niter, --dist "};
+
+
 
   const string cachename{ (not readcache.empty()) ? readcache : writecache };
   const auto cache_mode = [&]()

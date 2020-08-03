@@ -15,6 +15,8 @@
 #include <lmscpp/utils.hpp>
 #include <lmscpp/operators.hpp>
 
+#include "common.hpp"
+
 using namespace argparse;
 using namespace SymEngine;
 using namespace SymEngine::OverloadedOperators;
@@ -23,36 +25,6 @@ using namespace stochastic;
 
 using namespace chrono;
 
-// NOTE: This was copied from classical.cpp, maybe I should put this in its own library
-class MeasureDuration
-{
-  time_point<high_resolution_clock> t0{high_resolution_clock::now()};
-public:
-  void reset() {t0 = high_resolution_clock::now();}
-  void show(string fname) const
-  {
-    auto t1{ high_resolution_clock::now() };
-    cout << fname
-         << " taked " <<  duration_cast<seconds>(t1 - t0).count() << "s." << endl;
-  }
-};
-
-// NOTE: This was copied from classical.cpp, maybe I should put this in its own library
-uintmax_t numfactorial(uintmax_t n)
-{
-  uintmax_t f{1};
-  while (n)
-    {
-      f *= n;
-      n--;
-    }
-  return f;
-}
-
-uintmax_t num_doublefactorial(uintmax_t n)
-{
-  return n <= 1 ? 1 : n*num_doublefactorial(n - 2);
-}
 
 // NOTE: This a redefininition. Maybe I should create a header file with definitions.
 using vec_func = vector<RCP<const FunctionSymbol>>;

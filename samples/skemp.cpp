@@ -276,7 +276,7 @@ int main(int argc, char **argv)
 
   program.add_argument("--dist")
     .help("The distribution used for the input signal. Possible values are gauss and lap(for laplacian).")
-    .default_value(string("gauss"))
+    .required()
     .action([](const string& val)
             {
               if (val != "gauss" and val != "lap")

@@ -15,6 +15,8 @@
 #include <lmscpp/utils.hpp>
 #include <lmscpp/operators.hpp>
 
+#include "common.hpp"
+
 using namespace argparse;
 using namespace SymEngine;
 using namespace SymEngine::OverloadedOperators;
@@ -22,55 +24,7 @@ using namespace std;
 using namespace stochastic;
 
 using namespace chrono;
-class MeasureDuration
-{
-  time_point<high_resolution_clock> t0{high_resolution_clock::now()};
-public:
-  void reset() {t0 = high_resolution_clock::now();}
-  void show(string fname) const
-  {
-    auto t1{ high_resolution_clock::now() };
-    cout << fname
-         << " taked " <<  duration_cast<seconds>(t1 - t0).count() << "s." << endl;
-  }
-};
 
-uintmax_t numfactorial(uintmax_t n)
-{
-  uintmax_t f{1};
-  while (n)
-    {
-      f *= n;
-      n--;
-    }
-  return f;
-}
-
-class ULaplacianMoment
-{
-  map_basic_basic & cache_;
-  const double scale_;
-public:
-  ULaplacianMoment(double scale, map_basic_basic & cache): scale_{scale}, cache_{cache} {};
-  RCP<const Basic> operator()(const vec_basic&, const RCP<const Integer>& n)
-  {
-    uintmax_t p{ static_cast<uintmax_t>(n->as_int()) };
-    if (p % 2 == 0)
-      {
-        auto sym{ symbol("γ_" + to_string(p)) };
-
-        if (cache_.find(sym) == cache_.end())
-          {
-            auto num{ number(numfactorial(p)*pow(scale_, p)) };
-            cache_[sym] = num;
-          }
-
-        return sym;
-      }
-
-    return zero;
-  }
-};
 
 // classical -L -M --symmatrix file --nummatrix file --evolution file --force
 // NUMBER_OF_EQUATIONS: 1000

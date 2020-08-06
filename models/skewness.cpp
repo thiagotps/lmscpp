@@ -133,7 +133,7 @@ int main(int argc, char ** argv)
   program.add_argument("-b","--beta").help("β").default_value(-1.0)
     .action([](const string &val){return stod(val);});
 
-  program.add_argument("--sv2","--sigmav2").help("variance (σᵥ²)").default_value(-1.0)
+  program.add_argument("--sv2","--sigmav2").help("variance (σᵥ²)").default_value(-1)
     .action([](const string &val){return stod(val);});
 
   program.add_argument("-n","--niter").help("Number of iterations.").default_value(-1)

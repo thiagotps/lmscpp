@@ -5,10 +5,6 @@ project (lmscpp VERSION 0.1
   LANGUAGES CXX)
 
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_FLAGS "-march=native -mtune=native")
-set(CMAKE_C_FLAGS "-march=native -mtune=native")
-set (CMAKE_CXX_FLAGS_RELEASE "-Ofast")
-set (CMAKE_C_FLAGS_RELEASE "-Ofast")
 
 enable_testing()
 

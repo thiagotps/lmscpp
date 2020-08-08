@@ -222,6 +222,12 @@ bool is_random_device_random()
   return ar1 != ar2;
 }
 
+const auto INVALID_INT = numeric_limits<int>::max();
+const auto INVALID_DOUBLE = numeric_limits<double>::quiet_NaN();
+
+bool is_invalid(double val) {return isinf(val);}
+bool is_invalid(int val) {return val == INVALID_INT;}
+
 int main(int argc, char **argv)
 {
   argparse::ArgumentParser program(argv[0]);
@@ -259,27 +265,27 @@ int main(int argc, char **argv)
   // pdf parameters.
   program.add_argument("--pdf-instant")
     .help("The instant k to which the estimated PDF refers to.")
-    .default_value(-1)
+    .default_value(INVALID_INT)
     .action([](const string& val){return stoi(val);});
 
   program.add_argument("--pdf-start")
     .help("The first sample of the PDF to generate.")
-    .default_value(-1.0)
+    .default_value(INVALID_DOUBLE)
     .action([](const string& val){return stod(val);});
 
   program.add_argument("--pdf-end")
     .help("The last sample of the PDF to generate.")
-    .default_value(-1.0)
+    .default_value(INVALID_DOUBLE)
     .action([](const string& val){return stod(val);});
 
   program.add_argument("--pdf-samples")
     .help("The number of samples to describe the PDF in the interval [pdf-start, pdf-end]")
-    .default_value(-1)
+    .default_value(INVALID_INT)
     .action([](const string& val){return stoi(val);});
 
   program.add_argument("--kernel-exp")
     .help("The value of the standard-deviation of the gaussian kernel will be pow(10, kernel_exp).")
-    .default_value(-1)
+    .default_value(INVALID_INT)
     .action([](const string& val){return stoi(val);});
 
   program.add_argument("--pdf-file")
@@ -346,7 +352,7 @@ int main(int argc, char **argv)
   string w_file = program.get<string>("--wfile");
 
   if (not pdf_file.empty())
-    if (pdf_instant < 0 or pdf_start < 0 or pdf_end < 0 or pdf_samples < 0 or kernel_exp < 0)
+    if (is_invalid(pdf_instant)  or is_invalid(pdf_start)  or is_invalid(pdf_end)  or is_invalid(pdf_samples)  or is_invalid(kernel_exp))
       throw runtime_error{"The following options are needed when using --pdf-file: --pdf-instant, --pdf-start, "s +
           "--pdf-end, --pdf-samples, --kernel-exp"s};
 

@@ -14,10 +14,12 @@
 #include <queue>
 #include <future>
 #include <limits>
+#include <chrono>
 
 #include "argparse.hpp"
 
 using namespace std;
+using namespace chrono;
 
 typedef unsigned long long ull;
 
@@ -87,13 +89,14 @@ struct experiment
   int pdf_samples, kernel_exp;
   string dist;
 
-  // Make this function only callable when the struct is instantiated with const.
-  auto compute(ull nsamples) {
+  // TODO: Make this function only callable when the struct is instantiated with const.
+  template<typename T>
+  auto compute(ull nsamples, T seed) const {
     double sigmau = 1;
     // TODO: The parameters b are still passed manually in the code.
     array<double, 10> b = {1., 0.8, 0.8, -0.7, 0.6, -0.5, 0.4, -0.3, 0.2, -0.1};
 
-    default_random_engine generator(time(NULL));
+    default_random_engine generator(seed);
     normal_distribution<double> u_dist_gauss(0.0, sigmau);
     laplace_distribution u_dist_lap(0.0, 1/sqrt(2));
     normal_distribution<double> nu_dist(0.0, sigmav);
@@ -199,14 +202,24 @@ struct experiment
   }
 };
 
-int number_of_cpu() {
-  FILE *f  = popen("lscpu | awk '/^CPU\\(s\\)/ {print $2}'","r");
-  constexpr int buffer_size = 30;
-  char buffer[buffer_size];
-  fgets(buffer,buffer_size,f);
-  fclose(f);
+// Test if the random_device is truly random. If the hardware doesn't support random numbers
+// the random_device will fallback to a pseudo random generator and thus the arrays ar1 and ar2
+// will be necessarily equal. If the hardware supports true random numbers, then
+// the probability of this function returns false (i.e: A false negative) is 10**-20.
+bool is_random_device_random()
+{
+  random_device rd1,rd2;
+  // default_random_engine rd1,rd2;
+  uniform_int_distribution<int> uni{1,100};
 
-  return atoi(buffer);
+  array<int,10> ar1, ar2;
+  for (auto &n : ar1)
+    n = uni(rd1);
+
+  for (auto &n : ar2)
+    n = uni(rd2);
+
+  return ar1 != ar2;
 }
 
 int main(int argc, char **argv)
@@ -302,7 +315,7 @@ int main(int argc, char **argv)
 
   program.add_argument("--ncpu")
     .help("The number of cpus to be used. Default is the number of cpus in the system.")
-    .default_value(number_of_cpu())
+    .default_value(thread::hardware_concurrency())
     .action([](const string& val){return stoi(val);});
 
   try {
@@ -322,7 +335,7 @@ int main(int argc, char **argv)
   double sigmav = sqrt(program.get<double>("--sigmav2"));
   string skewness_file = program.get<string>("--skewness-file");
   string mse_file = program.get<string>("--mse-file");
-  const int NCPU = program.get<int>("--ncpu");
+  const auto NCPU = program.get<unsigned int>("--ncpu");
   int pdf_instant = program.get<int>("--pdf-instant");
   double pdf_start = program.get<double>("--pdf-start");
   double pdf_end = program.get<double>("--pdf-end");
@@ -336,6 +349,12 @@ int main(int argc, char **argv)
     if (pdf_instant < 0 or pdf_start < 0 or pdf_end < 0 or pdf_samples < 0 or kernel_exp < 0)
       throw runtime_error{"The following options are needed when using --pdf-file: --pdf-instant, --pdf-start, "s +
           "--pdf-end, --pdf-samples, --kernel-exp"s};
+
+  if (not is_random_device_random())
+    {
+      cerr << "This device does not support true random numbers" << endl;
+      return 1;
+    }
 
   // The initializer {} avoids implicit conversion.
   ull indv_samples{ nsamples/NCPU };
@@ -355,19 +374,23 @@ int main(int argc, char **argv)
     modes |= WTILDE;
 
 
-  experiment e{.N = N, .M = M, .niter = niter, .beta = beta,
+  const experiment e{.N = N, .M = M, .niter = niter, .beta = beta,
                .sigmav = sigmav, .modes = modes, .pdf_instant = pdf_instant,
                .pdf_start = pdf_start, .pdf_end = pdf_end, .pdf_samples = pdf_samples,
                .kernel_exp = kernel_exp, .dist = dist};
 
-  auto compute = [&e](auto nsamples) { return e.compute(nsamples); };
-  vector<decltype(async(compute, nsamples))> r;
+  random_device rd;
+  auto current_time = high_resolution_clock::now().time_since_epoch().count();
+  uniform_int_distribution<decltype(current_time)> uni{0, current_time};
+
+  auto compute = [e](auto nsamples, auto seed) { return e.compute(nsamples, seed); };
+  vector<decltype(async(compute, nsamples, current_time))> r;
 
   if (NCPU > 1)
     for (auto i = 0; i < NCPU-1; i++)
-      r.push_back(async(compute,indv_samples));
+      r.push_back(async(compute,indv_samples, uni(rd)));
 
-  auto rs = compute(indv_samples+rest_samples);
+  auto rs = compute(indv_samples+rest_samples, uni(rd));
   for (auto &ft:r)
     {
       auto rs1 = ft.get();

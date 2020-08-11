@@ -282,7 +282,7 @@ int main(int argc, char ** argv)
     inn = inn + x(k - integer(j))*wtil[j](k);
 
   for (auto i = 0; i < N; i++)
-    eqs.setitem(wtil[i](k+one), wtil[i](k) - step_size*x(k - integer(i)) * inn + step_size*v(k)*x(k - integer(i)));
+    eqs.setitem(wtil[i](k+one), wtil[i](k) - step_size*x(k - integer(i)) * inn - step_size*v(k)*x(k - integer(i)));
 
   Experiment todo{eqs, E, cache, [dist_mode](const Symbol & x) -> RCP<const Basic>
                                  {

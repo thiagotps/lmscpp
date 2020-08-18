@@ -5,8 +5,10 @@
 #include <string>
 #include <future>
 #include <algorithm>
+#include <set>
 
 #include <argparse.hpp>
+#include <pcg_random.hpp>
 
 using namespace std;
 using namespace chrono;
@@ -59,7 +61,7 @@ struct experiment
     static constexpr double sigmau {1};
     static constexpr array b {1., 0.8, 0.8, -0.7, 0.6, -0.5, 0.4, -0.3, 0.2, -0.1};
 
-    default_random_engine gen{seed};
+    pcg64 gen{seed};
     normal_distribution<double> u_dist_gauss{0.0, sigmau};
     normal_distribution<double> nu_dist_gauss{0.0, sigmav};
     auto u_dist = [&gen,&u_dist_gauss]() {return u_dist_gauss(gen);};
@@ -120,22 +122,18 @@ struct experiment
   }
 };
 
-
-bool is_random_device_random()
+auto gen_random_seeds(int n)
 {
-  random_device rd1,rd2;
-  // default_random_engine rd1,rd2;
-  uniform_int_distribution<int> uni{1,100};
+  set<uintmax_t> s;
+  mt19937_64 gen{chrono::high_resolution_clock::now().time_since_epoch().count()};
+  uniform_int_distribution<uintmax_t> uri{1, numeric_limits<uintmax_t>::max()};
 
-  array<int,10> ar1, ar2;
-  for (auto &n : ar1)
-    n = uni(rd1);
+  while (s.size() != n)
+    s.insert(uri(gen));
 
-  for (auto &n : ar2)
-    n = uni(rd2);
-
-  return ar1 != ar2;
+  return vector(s.begin(), s.end());
 }
+
 
 int main(int argc, char ** argv) {
 
@@ -205,14 +203,7 @@ int main(int argc, char ** argv) {
   const auto dist = program.get<string>("--dist");
   const auto NCPU { thread::hardware_concurrency() };
 
-  if (not is_random_device_random())
-    {
-      cerr << "This device does not support true random numbers" << endl;
-      return 1;
-    }
-
-  random_device d;
-  uniform_int_distribution<uintmax_t> intdist{1,numeric_limits<uintmax_t>::max()};
+  auto random_seeds = gen_random_seeds(NCPU);
 
   const experiment e{.N = N, .M = M, .niter = niter, .beta = beta,
     .sigmav = sigmav};
@@ -221,12 +212,13 @@ int main(int argc, char ** argv) {
   auto r{nsamples % NCPU};
   auto func = [&e](auto n, auto s) { return e.compute(n, s); };
 
-  auto as1 = async(func, q + r, intdist(d));
+
+  auto as1 = async(func, q + r, random_seeds[0]);
   vector<decltype(as1)> v_async {};
   v_async.emplace_back(move(as1));
 
-  for (auto i = 0; i < NCPU - 1; i++)
-    v_async.emplace_back(async(func, q, intdist(d)));
+  for (auto i = 1; i <= NCPU - 1; i++)
+    v_async.emplace_back(async(func, q, random_seeds.at(i)));
 
   auto res = v_async[0].get();
   for (auto it = v_async.begin()+1; it != v_async.end(); it++)

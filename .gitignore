@@ -1,0 +1,7 @@
+.ccls-cache
+.clangd
+.dir-locals.el
+.projectile
+TAGS
+build
+compile_commands.json

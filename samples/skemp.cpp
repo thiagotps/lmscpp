@@ -79,6 +79,7 @@ enum
    PDF = 1 << 3,
   };
 
+
 struct experiment
 {
   const int N, M, niter;
@@ -89,6 +90,13 @@ struct experiment
   const int pdf_instant;
   const double pdf_start, pdf_end;
   const int pdf_samples, kernel_exp;
+  const bool pdf_square;
+
+  inline double normal_pdf(double x, double mean) const
+  {
+    const double sigma {pow(10, kernel_exp)};
+    return  exp(-(x - mean)*(x - mean)/(2.0*sigma*sigma))/(sigma * sqrt(2.0 * M_PI));
+  }
 
   template<typename T>
   auto compute(uintmax_t nsamples, T seed) const
@@ -172,15 +180,11 @@ struct experiment
 
             if (modes & PDF and k == pdf_instant)
               {
-                const double sigma {pow(10, kernel_exp)};
                 double delta { (pdf_end - pdf_start)/pdf_samples };
                 for (auto n = 0; n <= pdf_samples; n++)
                   {
                     double x {pdf_start + n*delta};
-                    double t { exp(-(x - wtilk.at(0))*(x - wtilk.at(0))/(2.0*sigma*sigma)) };
-                    t /= sigma * sqrt(2.0 * M_PI);
-
-                    rs.pdf[n] += t;
+                    rs.pdf[n] += normal_pdf(x,  pdf_square ? wtilk.at(0)*wtilk.at(0) : wtilk.at(0) );
                   }
               }
 
@@ -300,6 +304,11 @@ int main(int argc, char ** argv) {
     .default_value(-7)
     .action([](const string& val){return stoi(val);});
 
+  program.add_argument("--pdf-square")
+    .help("Return the PDF of the square.")
+    .default_value(false)
+    .implicit_value(true);
+
   program.add_argument("--pdf-file")
     .help("The file where the PDF's evolution of the first filter coefficient at a determined instant k will be stored.")
     .default_value(string(""))
@@ -330,6 +339,7 @@ int main(int argc, char ** argv) {
   const auto pdf_end = program.get<double>("--pdf-end");
   const auto pdf_samples = program.get<int>("--pdf-samples");
   const auto kernel_exp = program.get<int>("--kernel-exp");
+  const auto pdf_square = program.get<bool>("--pdf-square");
 
   uint16_t modes{0};
   if (not skewness_file.empty())
@@ -346,7 +356,8 @@ int main(int argc, char ** argv) {
   const experiment e{.N = N, .M = M, .niter = niter, .beta = beta,
     .sigmav = sigmav, .modes = modes, .dist = dist,
     .pdf_instant = pdf_instant, .pdf_start = pdf_start, .pdf_end = pdf_end,
-    .pdf_samples = pdf_samples, .kernel_exp = kernel_exp};
+    .pdf_samples = pdf_samples, .kernel_exp = kernel_exp,
+    .pdf_square = pdf_square};
 
   auto q{nsamples/NCPU};
   auto r{nsamples % NCPU};

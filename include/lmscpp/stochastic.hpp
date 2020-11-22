@@ -199,6 +199,7 @@ namespace stochastic{
     inline size_t get_number_of_eqs() const {return number_of_eqs_;};
 
     void write_skewness(int niter,RCP<const Basic> randexpr, ofstream & os) const;
+    pair<int, double> skewness_steady_state(RCP<const Basic> randexpr) const;
     void write_expression(int niter,RCP<const Basic> randexpr, ofstream & os) const;
   };
 

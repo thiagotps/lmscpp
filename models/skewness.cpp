@@ -9,6 +9,8 @@
 #include <symengine/ntheory.h>
 #include <symengine/logic.h>
 #include <symengine/matrix.h>
+#include <symengine/printers/latex.h>
+
 #include <argparse.hpp>
 
 #include <lmscpp/stochastic.hpp>
@@ -90,6 +92,23 @@ enum distmode
    LAP,
   };
 
+
+
+
+string latex(const DenseMatrix& d) {
+  string out{};
+
+  auto n{d.nrows()}, m{d.ncols()};
+  for (auto i = 0; i < n; i++) {
+    for (auto j = 0; j < m; j++){
+      out += latex(*d.get(i, j)) + " &";
+    }
+    out += " \\\\\n";
+  }
+
+  return out;
+}
+
 int main(int argc, char ** argv)
 {
   argparse::ArgumentParser program(argv[0]);
@@ -154,6 +173,15 @@ int main(int argc, char ** argv)
               return it->second;
             });
 
+  program.add_argument("--steady-state")
+    .help("The steady-state value. Currently only support the skewness.")
+    .implicit_value(true)
+    .default_value(false);
+
+  program.add_argument("--latex")
+    .help("print the matrices to the standard output ")
+    .implicit_value(true)
+    .default_value(false);
 
   try {
     program.parse_args(argc, argv);
@@ -174,6 +202,9 @@ int main(int argc, char ** argv)
   const auto ind_mode = program.get<indmode>("--indmode");
   const auto out_mode = program.get<outmode>("--outmode");
   const auto dist_mode = program.get<distmode>("--dist");
+  const auto steady_state = program.get<bool>("--steady-state");
+  const auto print_latex = program.get<bool>("--latex");
+
 
   if (not ofilename.empty())
     if (beta < 0 or sigmav2 < 0 or niter < 0 or dist_mode == distmode::UNSPECIFIED)
@@ -346,8 +377,40 @@ int main(int argc, char ** argv)
         {
           duration.reset();
           todo.write_expression(niter, mse_expanded, os);
-          duration.show("todo.write_skewness()");
+          duration.show("todo.write_expression()");
         }
     }
+
+  if (print_latex)
+    {
+      cout << "Printing latex...\n" << endl;
+      cout << "Matrix A: " << endl;
+      cout << latex(todo.get_A()) << endl;
+
+      cout << "Matrix Yk: " << endl;
+      cout << latex(todo.get_Yk()) << endl;
+
+      cout << "Matrix B: " << endl;
+      cout << latex(todo.get_B()) << endl;
+
+      cout << "Printing numeric matrix...\n" << endl;
+
+      cout << "Matrix A: " << endl;
+      cout << todo.get_num_A() << endl;
+      cout << "Matrix B: " << endl;
+      cout << todo.get_num_B() << endl;
+    }
+
+  if (steady_state)
+    {
+      if (out_mode == outmode::SK) {
+        auto p = todo.skewness_steady_state(wtil[0](k));
+        cout << "steady-state: " << p.second << endl;
+        cerr << "Steady-state found with " << p.first << " iterations." << endl;
+      }
+      else
+        throw runtime_error{"The steady-state value of MSE is currently not supported!"};
+    }
+
   return 0;
 }

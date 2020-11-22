@@ -421,6 +421,50 @@ namespace stochastic{
       }
   }
 
+  pair<int, double> Experiment::skewness_steady_state(RCP<const Basic> randexpr) const
+  {
+    using namespace OverloadedOperators;
+    int fi{-1}, si{-1}, ti{-1};
+
+    {
+      auto fm{E_(randexpr)}, sm{E_(pow(randexpr, 2_i))}, tm{E_(pow(randexpr, 3_i))};
+      for (auto i = 0; i < Yk_.nrows(); i++)
+        {
+          if (eq(*Yk_.get(i, 0), *fm))
+            fi = i;
+          else if(eq(*Yk_.get(i, 0), *sm))
+            si = i;
+          else if(eq(*Yk_.get(i, 0), *tm))
+            ti = i;
+        }
+
+      if (fi == -1 or si == -1 or ti == -1)
+        throw runtime_error("It was not possible to find all the three moments in the state variable's matrix.");
+    }
+
+    num_stv_iter numstv{get_num_A(),get_num_B(), get_num_Y0()};
+    double sk{0.0},skl1{0.0},skl2{0.0};
+    for (int idx{0};; ++idx)
+      {
+        auto yk = *numstv;
+        auto fm = yk.get(fi, 0), sm = yk.get(si, 0), tm = yk.get(ti, 0);
+        auto sd = sqrt(sm - pow(fm, 2));
+        auto sk = (tm - 3 * fm * pow(sd, 2) - pow(fm, 3))/pow(sd, 3);
+
+        skl2 = skl1;
+        skl1 = sk;
+        // Check if both the first and second order derivatives are approximately equal to zero.
+        // If its the case, then we have reached the steady-state of the skewness' evolution.
+        if (idx >= 2 and abs(sk - skl1) < 1e-8 and abs(sk - 2*skl1 + skl2) < 1e-8) {
+          return make_pair(idx, sk);
+        }
+
+        ++numstv;
+      }
+  }
+
+
+
   void Experiment::write_expression(int niter,RCP<const Basic> expr, ofstream & os) const
   {
     auto stv = states_vars(expr);

@@ -16,6 +16,7 @@
 #include <lmscpp/stochastic.hpp>
 #include <lmscpp/utils.hpp>
 #include <lmscpp/operators.hpp>
+#include <lmscpp/nummatrix.hpp>
 
 #include "common.hpp"
 
@@ -109,6 +110,27 @@ string latex(const DenseMatrix& d) {
   return out;
 }
 
+const double binary_precision{pow(10,-3)};
+double binary(function<bool (double)> f, double lo, double hi, double ml) {
+  double m{(lo + hi)/2.0};
+  if (abs(m - ml) < binary_precision*abs(ml))
+    return m;
+
+  return f(m) ? binary(f, m, hi, m) : binary(f, lo, m, m);
+}
+
+const auto sigmav{ symbol("σ_v") }, step_size{ symbol("β") }, k{ symbol("k") };
+
+double get_max_beta(double lo, double hi, const DenseMatrix & m,
+                map_basic_basic ini,
+                const fallback_func_type fallback) {
+
+  return binary([&](double beta) {
+    ini[step_size] = number(beta);
+    return NumMatrix::max_eigen_value(sym2num(m, ini, fallback)) < 1;
+  }, lo, hi, lo);
+}
+
 int main(int argc, char ** argv)
 {
   argparse::ArgumentParser program(argv[0]);
@@ -183,6 +205,13 @@ int main(int argc, char ** argv)
     .implicit_value(true)
     .default_value(false);
 
+  program.add_argument("--max-beta").help("get the maximum beta").default_value(0.0)
+    .action([](const string &val){return stod(val);});
+
+  // TODO: Maybe instead of an int we should return a uintmax_t ?
+  program.add_argument("--max-high").help("Max high/depth of the recursion!").default_value(numeric_limits<int>::max())
+    .action([](const string &val){return stoi(val);});
+
   try {
     program.parse_args(argc, argv);
   } catch (const runtime_error &err) {
@@ -204,6 +233,8 @@ int main(int argc, char ** argv)
   const auto dist_mode = program.get<distmode>("--dist");
   const auto steady_state = program.get<bool>("--steady-state");
   const auto print_latex = program.get<bool>("--latex");
+  const auto max_beta = program.get<double>("--max-beta");
+  const auto max_high = program.get<int>("--max-high");
 
 
   if (not ofilename.empty())
@@ -223,7 +254,6 @@ int main(int argc, char ** argv)
                             return cachemode::IGNORE;
                           }();
 
-  const auto sigmav{ symbol("σ_v") }, step_size{ symbol("β") }, k{ symbol("k") };
   map_basic_basic cache{ {sigmav, number(sqrt(sigmav2))}, {step_size, number(beta)} };
 
   StochasticProcess::clear();
@@ -236,7 +266,7 @@ int main(int argc, char ** argv)
                        return zero;
                       }};
 
-  StochasticProcess v{"v", [&sigmav](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
+  StochasticProcess v{"v", [](const vec_basic&, const RCP<const Integer>& n) -> RCP<const Basic>
                            {
                              if (even(*n))
                                return pow(sigmav, n);
@@ -254,8 +284,11 @@ int main(int argc, char ** argv)
                             return null;
                            });
 
-  ExpectedOperator E{[ind_mode](const FunctionSymbol& x, const FunctionSymbol& y, int high){
-                             auto xy = [ind_mode](const FunctionSymbol &x, const FunctionSymbol &y, int high)
+  int recursion_depth = 0;
+  ExpectedOperator E{[ind_mode, max_high, &recursion_depth](const FunctionSymbol& x, const FunctionSymbol& y, int high){
+    recursion_depth = max(recursion_depth, high);
+    auto local_ind_mode = high <= max_high ? ind_mode : indmode::IA;
+                             auto xy = [local_ind_mode, max_high](const FunctionSymbol &x, const FunctionSymbol &y)
                                        {
                                          auto xname{x.get_name()};
                                          auto yname{y.get_name()};
@@ -267,9 +300,9 @@ int main(int argc, char ** argv)
                                          // comparasion.
                                          if (xname.find("ẅ") != string::npos and yname == "u")
                                            {
-                                             if (ind_mode == indmode::EEA)
+                                             if (local_ind_mode == indmode::EEA)
                                                return not rcp_dynamic_cast<const Integer>(expand(x.get_args()[0] - y.get_args()[0]))->is_positive();
-                                             else if (ind_mode == indmode::IA)
+                                             else if (local_ind_mode == indmode::IA)
                                                return true;
                                            }
 
@@ -278,7 +311,7 @@ int main(int argc, char ** argv)
 
                                          return false;
                                        };
-                             return xy(x,y, high) or xy(y,x, high);
+                             return xy(x,y) or xy(y,x);
                            }};
 
   array bvalues{1., 0.8, 0.8, -0.7, 0.6, -0.5, 0.4, -0.3, 0.2, -0.1};
@@ -315,7 +348,7 @@ int main(int argc, char ** argv)
   for (auto i = 0; i < N; i++)
     eqs.setitem(wtil[i](k+one), wtil[i](k) - step_size*x(k - integer(i)) * inn - step_size*v(k)*x(k - integer(i)));
 
-  Experiment todo{eqs, E, cache, [dist_mode](const Symbol & x) -> RCP<const Basic>
+  const auto fallback = [dist_mode](const Symbol & x) -> RCP<const Basic>
                                  {
                                   auto name = x.__str__();
                                   if (name.size() >= 4 and name.substr(0, 2) == "γ")
@@ -336,7 +369,9 @@ int main(int argc, char ** argv)
                                     }
 
                                   return null;
-                                 }};
+                                 };
+
+  Experiment todo{eqs, E, cache, fallback};
 
   RCP<const Basic> mse_expanded{null};
   vec_func seeds{};
@@ -357,6 +392,7 @@ int main(int argc, char ** argv)
 
   read_write_compute(cachename, cache_mode, todo, seeds);
   cout << "NUMBER_OF_EQUATIONS: " << todo.get_number_of_eqs() << endl;
+  cout << "RECURSION_DEPTH: " << recursion_depth << endl;
 
   MeasureDuration duration{};
   if (not ofilename.empty())
@@ -412,6 +448,10 @@ int main(int argc, char ** argv)
       else
         throw runtime_error{"The steady-state value of MSE is currently not supported!"};
     }
+
+  if (max_beta) {
+    cout << "beta max = " << get_max_beta(0.0, max_beta, todo.get_A(), cache, fallback) << endl;
+  }
 
   return 0;
 }

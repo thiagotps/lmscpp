@@ -65,9 +65,9 @@ namespace stochastic{
       takes only a function that check if two random variables are independent. */
   class ExpectedOperator{
     // The function responsible for checking if two random variables are independent.
-    function<bool (const FunctionSymbol&,const FunctionSymbol&)> is_independent_;
+    function<bool (const FunctionSymbol&,const FunctionSymbol&, int high)> is_independent_;
   public:
-    ExpectedOperator(function<bool (const FunctionSymbol&,const FunctionSymbol&)> is_ind_func);
+    ExpectedOperator(function<bool (const FunctionSymbol&,const FunctionSymbol&, int high)> is_ind_func);
 
     // Returns E(arg) with the following simplifications:
     // 1. If 'arg' is a number, then just return 'arg'.
@@ -76,18 +76,18 @@ namespace stochastic{
     // a FunctionSymbol whose name is 'E' and whose argument is 'arg'.
     RCP<const Basic> operator()(const RCP<const Basic> &arg) const;
     //  Basic can carry a FunctionSymbol or a Pow. It returns whether the two random variables are independent or not.
-    bool is_independent(const Basic& b1, const Basic& b2) const;
+    bool is_independent(const Basic& b1, const Basic& b2, int high) const;
 
     // NOTE: This should be turned into a generator when C++20 becomes available.
     //  Takes a expression and breaks it into a list of independent random variables.
     // The last element is the part of the expression that cannot be breaked into independent parts.
-    vec_basic split_independents(const RCP<const Basic> &expr) const ;
+    vec_basic split_independents(const RCP<const Basic> &expr, int high) const ;
 
     // This method takes a FunctionSymbol in the form E(...) and try to expand it accordingly with
     // the properties of the expected operator. Example: if it receives E(u(x)**2 + 2*v(x+1) + n(x-1)) and
     // the second moment of u(x) is γ2 , the first moment of v(x+1) is β and n(x-1) doesn't have a moment then the result of this
     // method will be γ2 + 2*β + E(n(x-1)).
-    RCP<const Basic> expand(const RCP<const FunctionSymbol> &term) const;
+    RCP<const Basic> expand(const RCP<const FunctionSymbol> &term, int high) const;
   };
 
   /*  This class is a set in which each element represents a state variable's update equation.
@@ -159,6 +159,9 @@ namespace stochastic{
   /* This is a help class that can compute the equations, mount both symbolic and numerical matrices, save/load
      these matrices into/from a cache, etc ...*/
   using fallback_func_type = function<RCP<const Basic> (const Symbol &x)>;
+
+  // Convert the symbolic DenseMatrix in the numerical nmatrix.
+  nmatrix sym2num(const DenseMatrix &, const map_basic_basic &inivalsmap, const fallback_func_type fallback);
   class Experiment
   {
     DenseMatrix A_,B_,Yk_;
@@ -170,8 +173,6 @@ namespace stochastic{
     const fallback_func_type fallback_; // Why I can't put a & here ?
 
   public:
-    // Convert the symbolic DenseMatrix in the numerical nmatrix.
-    nmatrix sym2num(const DenseMatrix&) const;
 
     /* 'inieqs' is the initial equations from the model, 'E' is the expected operator,
        'inivalsmap' is a map associating each constant with its value (which can be symbolic or numeric).
@@ -192,10 +193,10 @@ namespace stochastic{
     inline const DenseMatrix & get_A() const {return A_;};
     inline const DenseMatrix & get_Yk() const {return Yk_;};
     inline const DenseMatrix & get_B() const {return B_;};
-    nmatrix get_num_A() const {return sym2num(A_);};
+    nmatrix get_num_A() const {return sym2num(A_, inivalsmap_, fallback_);};
     DenseMatrix get_sym_Y0() const;
-    nmatrix get_num_Y0() const {return sym2num(get_sym_Y0());}
-    nmatrix get_num_B() const {return sym2num(B_);}
+    nmatrix get_num_Y0() const {return sym2num(get_sym_Y0(), inivalsmap_, fallback_);}
+    nmatrix get_num_B() const {return sym2num(B_, inivalsmap_, fallback_);}
     inline size_t get_number_of_eqs() const {return number_of_eqs_;};
 
     void write_skewness(int niter,RCP<const Basic> randexpr, ofstream & os) const;

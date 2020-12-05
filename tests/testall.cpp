@@ -83,8 +83,8 @@ void test_get_addtuple(){
 void test_ExptectOperator_and_EquationSet(){
   // u is independent of v but v is not independent of w. w and u are independent.
 
-  const ExpectedOperator E{[](const FunctionSymbol& x, const FunctionSymbol& y){
-                       auto xy = [](const FunctionSymbol &x, const FunctionSymbol &y)
+  const ExpectedOperator E{[](const FunctionSymbol& x, const FunctionSymbol& y, int high){
+                       auto xy = [](const FunctionSymbol &x, const FunctionSymbol &y, int high)
                                  {
                                    auto xname{x.get_name()};
                                    auto yname{y.get_name()};
@@ -97,7 +97,7 @@ void test_ExptectOperator_and_EquationSet(){
 
                                    return false;
                                  };
-                       return xy(x,y) or xy(y,x);
+                       return xy(x,y, high) or xy(y,x, high);
                      }};
 
   const auto gamma{symbol("γ")}, sigma{symbol("σ")}, alpha{symbol("α")};

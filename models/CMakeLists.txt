@@ -13,3 +13,7 @@ install(TARGETS classical RUNTIME DESTINATION bin COMPONENT lmscpp)
 add_executable(skewness skewness.cpp common.cpp)
 target_link_libraries(skewness PRIVATE stochastic argparse::argparse)
 install(TARGETS skewness RUNTIME DESTINATION bin COMPONENT lmscpp)
+
+add_executable(intermediary intermediary.cpp common.cpp)
+target_link_libraries(intermediary PRIVATE stochastic argparse::argparse)
+install(TARGETS intermediary RUNTIME DESTINATION bin COMPONENT lmscpp)

@@ -105,8 +105,8 @@ int main(int argc, char ** argv)
                             return null;
                            });
 
-  ExpectedOperator E{[](const FunctionSymbol& x, const FunctionSymbol& y){
-                             auto xy = [](const FunctionSymbol &x, const FunctionSymbol &y)
+  ExpectedOperator E{[](const FunctionSymbol& x, const FunctionSymbol& y, int high){
+                             auto xy = [](const FunctionSymbol &x, const FunctionSymbol &y, int high)
                                        {
                                          auto xname{x.get_name()};
                                          auto yname{y.get_name()};
@@ -125,7 +125,7 @@ int main(int argc, char ** argv)
 
                                          return false;
                                        };
-                             return xy(x,y) or xy(y,x);
+                             return xy(x,y, high) or xy(y,x, high);
                            }};
 
 
@@ -162,7 +162,8 @@ int main(int argc, char ** argv)
   for (auto i = 0; i < L; i++)
     eqs.setitem(V[i](k+one), V[i](k) - step_size*x(k - integer(i)) * inn + step_size*n(k)*x(k - integer(i)));
 
-  auto epislonk = E.expand(rcp_dynamic_cast<const FunctionSymbol>(E(expand(pow(inn, 2_i)))));
+  // TODO: Default value of 0  should come here.
+  auto epislonk = E.expand(rcp_dynamic_cast<const FunctionSymbol>(E(expand(pow(inn, 2_i)))), 0);
 
   MeasureDuration duration;
   Experiment todo{eqs, E, cache, [](const Symbol & x) -> RCP<const Basic>

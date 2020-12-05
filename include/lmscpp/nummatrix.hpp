@@ -8,6 +8,8 @@
 
 #include <vector>
 #include <ostream>
+#include <cmath>
+
 namespace NumMatrix
 {
   using namespace std;
@@ -18,10 +20,13 @@ namespace NumMatrix
     vector<vector<T>> m_;
   public:
     NumMatrix(unsigned int rows, unsigned int cols): m_{rows,vector<T>(cols, 0)} {}
+    NumMatrix(initializer_list<vector<T>> l): m_{l} {};
+
+
     inline unsigned int  nrows() const {return m_.size();}
     inline unsigned int  ncols() const {return m_[0].size();}
-    vector<T>& operator[](unsigned int  idx) {return m_[idx];}
-    const vector<T>& operator[](unsigned int idx) const {return m_[idx];}
+    vector<T>& operator[](unsigned int  idx) {return m_.at(idx);}
+    const vector<T>& operator[](unsigned int idx) const {return m_.at(idx);}
 
     T get(unsigned int i, unsigned int j) const {return (*this)[i][j];}
     void set(unsigned int i, unsigned int j, T t) {(*this)[i][j] = t;}
@@ -96,6 +101,10 @@ namespace NumMatrix
 
     return os;
   }
+  using nmatrix = NumMatrix<double>;
+
+  nmatrix operator*(double, const nmatrix &);
+  double max_eigen_value(const nmatrix &);
 
 };
 

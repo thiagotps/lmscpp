@@ -58,7 +58,7 @@ namespace stochastic{
     return false;
   }
 
-  ExpectedOperator::ExpectedOperator(function<bool (const FunctionSymbol&,const FunctionSymbol&)> is_ind_func):
+  ExpectedOperator::ExpectedOperator(function<bool (const FunctionSymbol&,const FunctionSymbol&, int high)> is_ind_func):
     is_independent_{is_ind_func} {}
 
   RCP<const Basic> ExpectedOperator::operator()(const RCP<const Basic> &arg) const{
@@ -74,7 +74,7 @@ namespace stochastic{
    return make_rcp<const FunctionSymbol>("E", arg);
   }
 
-  bool ExpectedOperator::is_independent(const Basic& b1, const Basic& b2) const {
+  bool ExpectedOperator::is_independent(const Basic& b1, const Basic& b2, int high) const {
     // NOTE: This will throw a exception if something diferent of a Pow and FunctionSymbol
     // is passed in. If the Pow's base is not a FunctionSymbol, this will raise a exception too.
     auto convert =  [](const Basic &arg) -> const FunctionSymbol& {
@@ -88,10 +88,10 @@ namespace stochastic{
 
     const auto& f1{convert(b1)};
     const auto& f2{convert(b2)};
-    return is_independent_(f1, f2);
+    return is_independent_(f1, f2, high);
   };
 
-  vec_basic ExpectedOperator::split_independents(const RCP<const Basic> &expr) const
+  vec_basic ExpectedOperator::split_independents(const RCP<const Basic> &expr, int high) const
   {
     if (not is_a<Mul>(*expr))
       return {expr};
@@ -110,7 +110,7 @@ namespace stochastic{
         bool ind = true;
         for (auto &y : rvs)
           {
-            if (x != y and not is_independent(*x,*y))
+            if (x != y and not is_independent(*x,*y, high))
               {
                 not_ind = mul(not_ind, x);
                 ind = false;
@@ -126,7 +126,7 @@ namespace stochastic{
     return res;
   }
 
-  RCP<const Basic> ExpectedOperator::expand(const RCP<const FunctionSymbol> &term) const
+  RCP<const Basic> ExpectedOperator::expand(const RCP<const FunctionSymbol> &term, int high) const
   {
     vec_basic addtuple{get_addtuple(SymEngine::expand(term->get_args()[0]))};
     auto s{addtuple[0]};
@@ -148,7 +148,7 @@ namespace stochastic{
       }
 
       vec_basic e{};
-      for (auto &t : split_independents(not_cnts))
+      for (auto &t : split_independents(not_cnts, high))
         e.emplace_back((*this)(t));
 
       auto mul_e = reduce(begin(e), end(e), rcp_static_cast<const Basic>(one), [](auto &a1, auto &a2)
@@ -247,13 +247,17 @@ namespace stochastic{
 
   void Experiment::compute(const vec_func & seed)
   {
+    using rcp_function_symbol = RCP<const FunctionSymbol>;
     EquationSet eqs{inieqs_.get_var()};
-    list<RCP<const FunctionSymbol>> s{seed.begin(), seed.end()};
-    vector<RCP<const FunctionSymbol>> Y;
+    list<pair<rcp_function_symbol, int>> s;
+    for (auto &sd:seed)
+      s.push_back(make_pair(sd, 0));
+
+    vector<rcp_function_symbol> Y;
 
     while (not s.empty())
       {
-        auto t = s.front();
+        auto [t, h] = s.front();
         s.pop_front();
         if (not eqs.contains(t))
           {
@@ -262,10 +266,12 @@ namespace stochastic{
             // This should not result in a number. Maybe I should do the expansion inside
             // the operator () of E instead of calling it separately.
             auto eee = E_(expand(t->get_args()[0], inieqs_));
-            auto u = E_.expand(rcp_dynamic_cast<const FunctionSymbol>(eee));
+            auto u = E_.expand(rcp_dynamic_cast<const FunctionSymbol>(eee), h);
 
             auto stvec = states_vars(u);
-            move(stvec.begin(), stvec.end(), back_inserter(s));
+            for (auto &tt: stvec)
+              s.push_back(move(make_pair(tt, h + 1)));
+
             eqs.setitem(t, u);
           }
       }
@@ -367,13 +373,15 @@ namespace stochastic{
     return s.apply(x);
   }
 
-  nmatrix Experiment::sym2num(const DenseMatrix & m) const
+  nmatrix sym2num(const DenseMatrix & m,
+                  const map_basic_basic& inivalsmap,
+                  const fallback_func_type fallback)
   {
     nmatrix tmp{m.nrows(), m.ncols()};
     for (auto i = 0; i < m.nrows(); i++)
       for (auto j = 0; j < m.ncols(); j++)
         {
-          RCP<const Basic> term{ fallxreplace(m.get(i, j),inivalsmap_, fallback_) };
+          RCP<const Basic> term{ fallxreplace(m.get(i, j),inivalsmap, fallback) };
 
           if (auto dptr = dynamic_cast<const RealDouble *>(term.get()); dptr != nullptr)
             tmp[i][j] = dptr->as_double();

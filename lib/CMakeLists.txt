@@ -7,7 +7,7 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/symengine/symengine
   # NOTE: There is something preventing version v0.6.0 of being properly configured by CMAKE
   # Menwhile we will just use the master version and wait until a new stable version is released
-  # GIT_TAG v0.6.0
+  GIT_TAG 2ed68bc890a2cbe8507fec1b0a2a833d75b00dbe
   )
 FetchContent_MakeAvailable(symengine)
 

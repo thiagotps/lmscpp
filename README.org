@@ -6,7 +6,7 @@
 
 The following instructions will install all executables defined in the folder *models* to the
 folder *.local/bin* in your home directory. So it is important to have the folder *~/.local/bin* in your
-*PATH* environmental variable.
+*PATH* environmental variable. Before proceeding make sure you have the GMP library installed in your system.
 
 #+BEGIN_SRC bash
 git clone "https://github.com/thiagotps/lmscpp"

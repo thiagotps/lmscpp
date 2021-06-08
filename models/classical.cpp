@@ -44,6 +44,9 @@ int main(int argc, char ** argv)
   program.add_argument("--evolution").help("The file where numeric matrices will be printed.").default_value(""s)
     .action([](const string &val){return val;});
 
+  program.add_argument("--emse").help("The file where Excess MSE evolution will be printed.").default_value(""s)
+    .action([](const string &val){return val;});
+
   program.add_argument("--niter").help("Number of iterations. Only needed when --evolution is passed.").default_value(0)
     .action([](const string &val){return stoi(val);});
 
@@ -70,6 +73,7 @@ int main(int argc, char ** argv)
   const string symmatrix_filename{program.get<string>("--symmatrix")};
   const string nummatrix_filename{program.get<string>("--nummatrix")};
   const string evolution_filename{program.get<string>("--evolution")};
+  const string emse_filename{program.get<string>("--emse")};
   const int niter{program.get<int>("--niter")};
   const bool readcache{program.get<bool>("--readcache")};
   const bool writecache{program.get<bool>("--writecache")};
@@ -244,6 +248,11 @@ int main(int argc, char ** argv)
         }
       duration.show("Matrix evolution");
     }
+
+  if (emse_filename != "") {
+    ofstream os{emse_filename, ofstream::out | ofstream::trunc};
+    todo.write_expression(niter, epislonk, os);
+  }
 
   cout << "NUMBER_OF_EQUATIONS: " << todo.get_number_of_eqs() << endl;
 

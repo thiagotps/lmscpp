@@ -1,3 +1,4 @@
+#include <cerrno>
 #include <iostream>
 #include <fstream>
 #include <chrono>
@@ -60,6 +61,15 @@ int main(int argc, char ** argv)
     .default_value(false)
     .implicit_value(true);
 
+  program.add_argument("-b","--beta").help("β").default_value(-1.0)
+    .action([](const string &val){return stod(val);});
+
+  program.add_argument("--sv2","--sigmav2").help("variance (σᵥ²)").default_value(-1.0)
+    .action([](const string &val){return stod(val);});
+
+
+
+
   try {
     program.parse_args(argc, argv);
   } catch (const runtime_error &err) {
@@ -75,11 +85,18 @@ int main(int argc, char ** argv)
   const string evolution_filename{program.get<string>("--evolution")};
   const string emse_filename{program.get<string>("--emse")};
   const int niter{program.get<int>("--niter")};
+  const auto beta{program.get<double>("--beta")};
+  const auto sigmav2{program.get<double>("--sigmav2")};
   const bool readcache{program.get<bool>("--readcache")};
   const bool writecache{program.get<bool>("--writecache")};
 
+  if (not emse_filename.empty())
+    if (beta < 0 or sigmav2 < 0 or niter < 0)
+      throw runtime_error{"Missing some of the following: --beta, --sv2, --niter"};
+
+
   const auto sigma{ symbol("σ_n") };
-  map_basic_basic cache{ {sigma, number(0.001)} };
+  map_basic_basic cache{ {sigma, number(sqrt(sigmav2))} };
 
   StochasticProcess::clear();
 
@@ -155,7 +172,7 @@ int main(int argc, char ** argv)
 
 
   auto step_size{symbol("μ")}, k{symbol("k")};
-  cache[step_size] = number(0.1);
+  cache[step_size] = number(beta);
 
   EquationSet eqs{k};
 

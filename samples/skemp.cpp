@@ -333,7 +333,7 @@ int main(int argc, char ** argv) {
   const auto mse_file = program.get<string>("--mse-file");
   const auto pdf_file = program.get<string>("--pdf-file");
   const auto dist = program.get<string>("--dist");
-  const auto NCPU = program.get<unsigned int>("--ncpu");
+  const auto NCPU = program.get<int>("--ncpu");
   const auto pdf_instant = program.get<int>("--pdf-instant");
   const auto pdf_start = program.get<double>("--pdf-start");
   const auto pdf_end = program.get<double>("--pdf-end");

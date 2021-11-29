@@ -1,0 +1,4 @@
+#+TITLE: Experiments
+
+This directory contains the scripts used to get the results presented in the paper
+"On the Skewness of the LMS Adaptive Weights".

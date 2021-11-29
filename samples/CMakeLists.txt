@@ -21,3 +21,8 @@ add_executable(skemp skemp.cpp)
 target_include_directories(skemp PRIVATE "${pcg_SOURCE_DIR}/include")
 target_link_libraries(skemp PRIVATE stochastic argparse::argparse)
 install(TARGETS skemp RUNTIME DESTINATION bin COMPONENT lmscpp)
+
+add_executable(fourthemp fourthemp.cpp)
+target_include_directories(fourthemp PRIVATE "${pcg_SOURCE_DIR}/include")
+target_link_libraries(fourthemp PRIVATE stochastic argparse::argparse)
+install(TARGETS fourthemp RUNTIME DESTINATION bin COMPONENT lmscpp)

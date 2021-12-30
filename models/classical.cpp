@@ -90,9 +90,9 @@ int main(int argc, char ** argv)
   const bool readcache{program.get<bool>("--readcache")};
   const bool writecache{program.get<bool>("--writecache")};
 
-  if (not emse_filename.empty())
-    if (beta < 0 or sigmav2 < 0 or niter < 0)
-      throw runtime_error{"Missing some of the following: --beta, --sv2, --niter"};
+  // TODO: It should not be mandatory in all ocasions.
+  if (beta < 0 or sigmav2 < 0 or niter < 0)
+    throw runtime_error{"Missing some of the following: --beta, --sv2, --niter"};
 
 
   const auto sigma{ symbol("σ_n") };

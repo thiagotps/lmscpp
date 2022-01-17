@@ -13,6 +13,12 @@
 
 #include <argparse.hpp>
 
+#include <Eigen/Sparse>
+#include <Eigen/SparseCore>
+#include <Spectra/GenEigsSolver.h>
+#include <Spectra/GenEigsComplexShiftSolver.h>
+#include <Spectra/MatOp/SparseGenMatProd.h>
+
 #include <lmscpp/stochastic.hpp>
 #include <lmscpp/utils.hpp>
 #include <lmscpp/operators.hpp>
@@ -28,6 +34,62 @@ using namespace std;
 using namespace stochastic;
 
 using namespace chrono;
+
+using namespace Eigen;
+using namespace Spectra;
+using namespace std;
+
+using RowSparseMatrix = SparseMatrix<double, RowMajor>;
+using VectorDouble = Eigen::VectorXd;
+using VectorComplex = Eigen::VectorXcd;
+
+int largest_eigen_value(const RowSparseMatrix *m, int ncv, int iterations, double precision, double * dest) {
+  SparseGenMatProd<double, RowMajor> op(*m);
+  static const int nev = 1;
+  GenEigsSolver<SparseGenMatProd<double, RowMajor>> eigs(op, nev, ncv);
+
+  eigs.init();
+  eigs.compute(SortRule::LargestMagn, iterations, precision);
+
+  auto info = eigs.info();
+  if (info == CompInfo::Successful) {
+    auto v = eigs.eigenvalues();
+    *dest = abs(v[0]);
+    for (int i = 0; i < v.size(); i++)
+      *dest = max(*dest, abs(v[i]));
+  }
+
+  return (int)info;
+}
+
+double largest_step_size(Experiment todo, double lo, double hi, double precision) {
+
+  const auto beta = symbol("β");
+  while (abs(hi - lo) > precision) {
+    double mid = (hi + lo)/2.0;
+    todo.inivalsmap_[beta] = number(mid);
+    auto numA = todo.sym2num(todo.get_A());
+
+    auto m = numA.nrows(), n = numA.ncols();
+    RowSparseMatrix sm(m, n);
+    for (int i = 0; i < m; i++)
+      for (int j = 0; j < n; j++) {
+        auto c = numA.get(i,j);
+        if (abs(c) > 1e-3)
+          sm.insert(i, j) = c;
+      }
+
+    double max_eigen;
+    largest_eigen_value(&sm, 3, 1000, 1e-3, &max_eigen);
+
+    if (abs(max_eigen) < 1.0)
+      lo = mid;
+    else
+      hi = mid;
+  }
+
+  return (hi + lo)/2.0;
+}
 
 
 // NOTE: This a redefininition. Maybe I should create a header file with definitions.
@@ -186,6 +248,11 @@ int main(int argc, char ** argv)
     .implicit_value(true)
     .default_value(false);
 
+  program.add_argument("--compute-max-beta")
+    .help("compute the maximum step size")
+    .implicit_value(true)
+    .default_value(false);
+
   try {
     program.parse_args(argc, argv);
   } catch (const runtime_error &err) {
@@ -207,6 +274,7 @@ int main(int argc, char ** argv)
   const auto dist_mode = program.get<distmode>("--dist");
   const auto steady_state = program.get<bool>("--steady-state");
   const auto print_latex = program.get<bool>("--latex");
+  const auto compute_max_beta = program.get<bool>("--compute-max-beta");
 
 
   if (not ofilename.empty())
@@ -423,6 +491,9 @@ int main(int argc, char ** argv)
       else
         throw runtime_error{"The steady-state value of the non SK mode is currently not supported!"};
     }
+
+  if (compute_max_beta)
+    cout << "Max step-size: " << largest_step_size(todo, 0.0, 1.0, 1e-3) << endl;
 
   return 0;
 }

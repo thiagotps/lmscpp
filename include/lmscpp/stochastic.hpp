@@ -166,10 +166,10 @@ namespace stochastic{
     //TODO: These references are dangerous. Maybe I should use a smart pointer instead.
     const EquationSet& inieqs_;
     const ExpectedOperator& E_;
-    const map_basic_basic& inivalsmap_;
     const fallback_func_type fallback_; // Why I can't put a & here ?
 
   public:
+    map_basic_basic inivalsmap_;
     // Convert the symbolic DenseMatrix in the numerical nmatrix.
     nmatrix sym2num(const DenseMatrix&) const;
 
@@ -178,7 +178,7 @@ namespace stochastic{
        When, for a symbol, a initial value cannot be found, the non null value returned by 'fallback' will be used.
     */
     Experiment(const EquationSet & inieqs, const ExpectedOperator & E,
-               const map_basic_basic& inivalsmap = map_basic_basic{},
+               map_basic_basic inivalsmap = map_basic_basic{},
                fallback_func_type fallback = fallback_func_type{}): inieqs_{inieqs}, E_{E}, inivalsmap_{inivalsmap},
                                                                        fallback_{fallback}
     {};

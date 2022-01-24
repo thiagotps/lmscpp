@@ -16,5 +16,5 @@ install(TARGETS skewness RUNTIME DESTINATION bin COMPONENT lmscpp)
 
 add_executable(fourth-order fourth-order.cpp common.cpp)
 target_link_libraries(fourth-order PRIVATE stochastic argparse::argparse)
-target_link_directories(fourth-order PRIVATE ../deps/eigen-3.4.0 ../deps/spectra-1.0.0/include)
+target_include_directories(fourth-order PRIVATE ../deps/eigen-3.4.0 ../deps/spectra-1.0.0/include)
 install(TARGETS fourth-order RUNTIME DESTINATION bin COMPONENT lmscpp)

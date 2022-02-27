@@ -71,16 +71,20 @@ double largest_step_size(Experiment todo, double lo, double hi, double precision
     auto numA = todo.sym2num(todo.get_A());
 
     auto m = numA.nrows(), n = numA.ncols();
-    RowSparseMatrix sm(m, n);
-    for (int i = 0; i < m; i++)
-      for (int j = 0; j < n; j++) {
-        auto c = numA.get(i,j);
-        if (abs(c) > 1e-3)
-          sm.insert(i, j) = c;
-      }
-
     double max_eigen;
-    largest_eigen_value(&sm, 3, 1000, 1e-3, &max_eigen);
+    if (m == 1 and n == 1) {
+      max_eigen = numA[0][0];
+    } else {
+      RowSparseMatrix sm(m, n);
+      for (int i = 0; i < m; i++)
+        for (int j = 0; j < n; j++) {
+          auto c = numA.get(i, j);
+          if (abs(c) > 1e-3)
+            sm.insert(i, j) = c;
+        }
+
+      largest_eigen_value(&sm, 3, 1000, 1e-3, &max_eigen);
+    }
 
     if (abs(max_eigen) < 1.0)
       lo = mid;

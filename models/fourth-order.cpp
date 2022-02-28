@@ -229,6 +229,9 @@ int main(int argc, char ** argv)
   program.add_argument("--sv2","--sigmav2").help("variance (σᵥ²)").default_value(-1.0)
     .action([](const string &val){return stod(val);});
 
+  program.add_argument("--upper-beta").help("The upper-limit step-size when searching for the maximum").default_value(1.0)
+    .action([](const string &val){return stod(val);});
+
   program.add_argument("-p","--precision")
     .help("Number of decimal cases when searching for the maximum step-size (default 3)")
     .default_value(3)
@@ -290,6 +293,7 @@ int main(int argc, char ** argv)
   const auto print_latex = program.get<bool>("--latex");
   const auto compute_max_beta = program.get<bool>("--compute-max-beta");
   const auto precision = pow(10, -program.get<int>("--precision"));
+  const auto upper_beta = program.get<double>("--upper-beta");
 
 
   if (not ofilename.empty())
@@ -521,7 +525,7 @@ int main(int argc, char ** argv)
     }
 
   if (compute_max_beta)
-    cout << "Max step-size: " << largest_step_size(todo, 0.0, 1.0, precision) << endl;
+    cout << "Max step-size: " << largest_step_size(todo, 0.0, upper_beta, precision) << endl;
 
   return 0;
 }

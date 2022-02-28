@@ -2,6 +2,7 @@
 #include <fstream>
 #include <chrono>
 
+#include <math.h>
 #include <stdexcept>
 #include <symengine/expression.h>
 #include <symengine/functions.h>
@@ -228,6 +229,11 @@ int main(int argc, char ** argv)
   program.add_argument("--sv2","--sigmav2").help("variance (σᵥ²)").default_value(-1.0)
     .action([](const string &val){return stod(val);});
 
+  program.add_argument("-p","--precision")
+    .help("Number of decimal cases when searching for the maximum step-size (default 3)")
+    .default_value(3)
+    .action([](const string &val){return stoi(val);});
+
   program.add_argument("-n","--niter").help("Number of iterations.").default_value(-1)
     .action([](const string &val){return stoi(val);});
 
@@ -283,6 +289,7 @@ int main(int argc, char ** argv)
   const auto steady_state = program.get<bool>("--steady-state");
   const auto print_latex = program.get<bool>("--latex");
   const auto compute_max_beta = program.get<bool>("--compute-max-beta");
+  const auto precision = pow(10, -program.get<int>("--precision"));
 
 
   if (not ofilename.empty())
@@ -514,7 +521,7 @@ int main(int argc, char ** argv)
     }
 
   if (compute_max_beta)
-    cout << "Max step-size: " << largest_step_size(todo, 0.0, 1.0, 1e-3) << endl;
+    cout << "Max step-size: " << largest_step_size(todo, 0.0, 1.0, precision) << endl;
 
   return 0;
 }

@@ -274,7 +274,7 @@ int main(int argc, char ** argv) {
   program.add_argument("--ncpu")
     .help("The number of cpus to be used. Default is the number of cpus in the system.")
     .default_value(thread::hardware_concurrency())
-    .action([](const string& val){return stoi(val);});
+    .action([](const string& val){return (unsigned int)stoi(val);});
 
   program.add_argument("--skewness-file","--sk-file")
     .help("the file where the evolution of the skewness of the first filter's coefficient will be stored")

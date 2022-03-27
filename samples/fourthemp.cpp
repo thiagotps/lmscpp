@@ -16,16 +16,16 @@ using namespace chrono;
 struct result_struct
 {
   // m1, m2 and m3 are the raw moments.
-  valarray<double> m1, m2, m3, m4, error_square, pdf, fourth_moment;
+  valarray<double> m1, m2, m3, m4, error_square, pdf, fourth_moment, msd;
   inline void operator += (const result_struct & o )
   {
-    m1 += o.m1; m2 += o.m2; m3 += o.m3; m4 += o.m4; error_square += o.error_square; pdf += o.pdf;
+    m1 += o.m1; m2 += o.m2; m3 += o.m3; m4 += o.m4; error_square += o.error_square; pdf += o.pdf, msd += o.msd;
   }
 
   template<typename T>
   inline void operator /= (T n)
   {
-    m1 /= n; m2 /= n; m3 /= n; m4 /= n; error_square /= n; pdf /= n;
+    m1 /= n; m2 /= n; m3 /= n; m4 /= n; error_square /= n; pdf /= n, msd /= n;
   }
 };
 
@@ -78,6 +78,7 @@ enum
    MSE = 1 << 2,
    PDF = 1 << 3,
    FOUR = 1 << 4,
+   MSD = 1 << 5,
   };
 
 
@@ -134,6 +135,9 @@ struct experiment
     if (modes & MSE)
       rs.error_square.resize(niter + 1, 0);
 
+    if (modes & MSD)
+      rs.msd.resize(niter + 1, 0);
+
     if (modes & PDF)
       rs.pdf.resize(pdf_samples+1, 0);
 
@@ -183,6 +187,12 @@ struct experiment
                   error += wtilk.at(i)*x.at(k - i);
 
                 rs.error_square[k] += error*error;
+              }
+
+              if (modes & MSD) {
+                rs.msd[k] = 0.0;
+                for (int i = 0; i < N; i++)
+                  rs.msd[k] += wtilk.at(i)*wtilk.at(i);
               }
 
             if (modes & PDF and k == pdf_instant)
@@ -286,6 +296,12 @@ int main(int argc, char ** argv) {
     .default_value(string(""))
     .action([](const string& val){return val;});
 
+  program.add_argument("--msd-file")
+    .help("the file where the evolution of the MSD will be stored")
+    .default_value(string(""))
+    .action([](const string& val){return val;});
+
+
   program.add_argument("--pdf-instant")
     .help("The instant k to which the estimated PDF refers to.")
     .default_value(0)
@@ -343,6 +359,7 @@ int main(int argc, char ** argv) {
   const auto sigmav = sqrt(program.get<double>("--sigmav2"));
   const auto skewness_file = program.get<string>("--skewness-file");
   const auto mse_file = program.get<string>("--mse-file");
+  const auto msd_file = program.get<string>("--msd-file");
   const auto pdf_file = program.get<string>("--pdf-file");
   const auto fourth_file = program.get<string>("--fourth-file");
   const auto dist = program.get<string>("--dist");
@@ -360,6 +377,9 @@ int main(int argc, char ** argv) {
 
   if (not mse_file.empty())
     modes |= MSE;
+
+  if (not msd_file.empty())
+    modes |= MSD;
 
   if (not pdf_file.empty())
     modes |= PDF;
@@ -411,6 +431,14 @@ int main(int argc, char ** argv) {
       for (auto k = 0; k <= niter; k++)
         msefile << k << " " << res.error_square[k] << endl;
     }
+
+  if (modes & MSD)
+    {
+      ofstream msdfile{msd_file};
+      for (auto k = 0; k <= niter; k++)
+        msdfile << k << " " << res.msd[k] << endl;
+    }
+
 
   if (modes & PDF)
     {

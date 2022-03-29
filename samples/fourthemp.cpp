@@ -190,7 +190,6 @@ struct experiment
               }
 
               if (modes & MSD) {
-                rs.msd[k] = 0.0;
                 for (int i = 0; i < N; i++)
                   rs.msd[k] += wtilk.at(i)*wtilk.at(i);
               }

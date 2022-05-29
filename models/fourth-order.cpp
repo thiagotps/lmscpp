@@ -12,7 +12,7 @@
 #include <symengine/matrix.h>
 #include <symengine/printers/latex.h>
 
-#include <argparse.hpp>
+#include <argparse/argparse.hpp>
 
 #include <Eigen/Sparse>
 #include <Eigen/SparseCore>

@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <set>
 
-#include <argparse.hpp>
+#include <argparse/argparse.hpp>
 #include <pcg_random.hpp>
 
 using namespace std;

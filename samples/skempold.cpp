@@ -16,7 +16,7 @@
 #include <limits>
 #include <chrono>
 
-#include "argparse.hpp"
+#include <argparse/argparse.hpp>
 
 using namespace std;
 using namespace chrono;

@@ -11,7 +11,7 @@
 #include <symengine/matrix.h>
 #include <symengine/printers/latex.h>
 
-#include <argparse.hpp>
+#include <argparse/argparse.hpp>
 
 #include <lmscpp/stochastic.hpp>
 #include <lmscpp/utils.hpp>

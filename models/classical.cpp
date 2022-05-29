@@ -9,7 +9,7 @@
 #include <symengine/ntheory.h>
 #include <symengine/logic.h>
 #include <symengine/matrix.h>
-#include <argparse.hpp>
+#include <argparse/argparse.hpp>
 
 
 #include <lmscpp/stochastic.hpp>

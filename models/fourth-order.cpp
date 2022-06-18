@@ -154,6 +154,7 @@ enum outmode
    MSE,
    FOUR,
    MSD,
+   VAR_MSD,
   };
 
 enum distmode
@@ -215,7 +216,8 @@ int main(int argc, char ** argv)
               static const map<string, outmode> choices {{"sk", outmode::SK},
                                                          {"mse", outmode::MSE},
                                                          {"four", outmode::FOUR},
-                                                         {"msd", outmode::MSD}};
+                                                         {"msd", outmode::MSD},
+                                                         {"var-msd", outmode::VAR_MSD}};
               auto it = choices.find(val);
               if (it == choices.end())
                 throw runtime_error{"Invalid value for --outmode"};
@@ -428,7 +430,7 @@ int main(int argc, char ** argv)
                                   return null;
                                  }};
 
-  RCP<const Basic> mse_expanded{null}, msd_expanded{null};
+  RCP<const Basic> mse_expanded{null}, msd_expanded{null}, var_msd_expanded{null};
   vec_func seeds{};
 
   if (out_mode == outmode::SK)
@@ -453,6 +455,12 @@ int main(int argc, char ** argv)
 
     msd_expanded = E.expand(rcp_dynamic_cast<const FunctionSymbol>(E(sum_square)));
     seeds = states_vars(msd_expanded);
+  } else if (out_mode == outmode::VAR_MSD) {
+    auto a = E(pow(wtil[0](k), 4_i));
+    auto b = E(pow(wtil[0](k), 2_i));
+    seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(a));
+    seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(b));
+    var_msd_expanded = a - b*b;
   }
 
 
@@ -489,6 +497,11 @@ int main(int argc, char ** argv)
       else if (out_mode == outmode::MSD) {
         duration.reset();
         todo.write_expression(niter, msd_expanded, os);
+        duration.show("todo.write_expression()");
+      }
+      else if (out_mode == outmode::VAR_MSD) {
+        duration.reset();
+        todo.write_expression(niter, var_msd_expanded, os);
         duration.show("todo.write_expression()");
       }
     }

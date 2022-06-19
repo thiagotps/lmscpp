@@ -17,16 +17,21 @@ struct result_struct
 {
   // m1, m2 and m3 are the raw moments.
   valarray<double> m1, m2, m3, m4,
-    error_square, pdf, fourth_moment, msd;
+    error_square, error_fourth,
+    pdf, fourth_moment, msd;
   inline void operator += (const result_struct & o )
   {
-    m1 += o.m1; m2 += o.m2; m3 += o.m3; m4 += o.m4; error_square += o.error_square; pdf += o.pdf, msd += o.msd;
+    m1 += o.m1; m2 += o.m2; m3 += o.m3; m4 += o.m4;
+    error_square += o.error_square; error_fourth += o.error_fourth;
+    pdf += o.pdf, msd += o.msd;
   }
 
   template<typename T>
   inline void operator /= (T n)
   {
-    m1 /= n; m2 /= n; m3 /= n; m4 /= n; error_square /= n; pdf /= n, msd /= n;
+    m1 /= n; m2 /= n; m3 /= n; m4 /= n;
+    error_square /= n; error_fourth /= n;
+    pdf /= n, msd /= n;
   }
 };
 
@@ -81,6 +86,7 @@ enum
    FOUR = 1 << 4,
    MSD = 1 << 5,
    VAR_MSD = 1 << 6,
+   VAR_MSE = 1 << 7,
   };
 
 
@@ -137,8 +143,11 @@ struct experiment
         rs.m3.resize(niter + 1, 0);
       }
 
-    if (modes & MSE)
+    if (modes & (MSE | VAR_MSE))
       rs.error_square.resize(niter + 1, 0);
+
+    if (modes & VAR_MSE)
+      rs.error_fourth.resize(niter + 1, 0);
 
     if (modes & MSD)
       rs.msd.resize(niter + 1, 0);
@@ -188,13 +197,15 @@ struct experiment
             if (modes & (FOUR | VAR_MSD))
               rs.m4[k] += wtilk[0]*wtilk[0]*wtilk[0]*wtilk[0];
 
-            if (modes & MSE)
+            if (modes & (MSE | VAR_MSE))
               {
                 double error = v.at(k);
                 for (auto i = 0; i < N; i++)
                   error += wtilk.at(i)*x.at(k - i);
 
                 rs.error_square[k] += error*error;
+                if (modes & VAR_MSE)
+                  rs.error_fourth[k] += error*error*error*error;
               }
 
               if (modes & MSD) {
@@ -345,7 +356,13 @@ int main(int argc, char ** argv) {
     .action([](const string& val){return val;});
 
   program.add_argument("--var-msd-file")
-    .help("The file where the evolution of the variance of the square of the first coefficient at a determined instant k will be stored.")
+    .help("The file where the evolution of the MSD's variance at a determined instant k will be stored.")
+    .default_value(string(""))
+    .action([](const string& val){return val;});
+
+
+  program.add_argument("--var-mse-file")
+    .help("The file where the evolution of the MSE's variance at a determined instant k will be stored.")
     .default_value(string(""))
     .action([](const string& val){return val;});
 
@@ -375,6 +392,7 @@ int main(int argc, char ** argv) {
   const auto pdf_file = program.get<string>("--pdf-file");
   const auto fourth_file = program.get<string>("--fourth-file");
   const auto var_msd_file = program.get<string>("--var-msd-file");
+  const auto var_mse_file = program.get<string> ("--var-mse-file");
   const auto dist = program.get<string>("--dist");
   const auto NCPU = program.get<unsigned int>("--ncpu");
   const auto pdf_instant = program.get<int>("--pdf-instant");
@@ -383,7 +401,6 @@ int main(int argc, char ** argv) {
   const auto pdf_samples = program.get<int>("--pdf-samples");
   const auto kernel_exp = program.get<int>("--kernel-exp");
   const auto pdf_square = program.get<bool>("--pdf-square");
-
   uint16_t modes{0};
   if (not skewness_file.empty())
     modes |= SKEWNESS;
@@ -402,6 +419,9 @@ int main(int argc, char ** argv) {
 
   if (not var_msd_file.empty())
     modes |= VAR_MSD;
+
+  if (not var_mse_file.empty())
+    modes |= VAR_MSE;
 
   auto random_seeds = gen_random_seeds(NCPU);
 
@@ -445,6 +465,12 @@ int main(int argc, char ** argv) {
     ofstream var_msd_ofs{var_msd_file};
     for (auto k = 0; k <= niter; k++)
       var_msd_ofs << k << " " << res.m4[k] - res.m2[k]*res.m2[k] << endl;
+  }
+
+  if (modes & VAR_MSE) {
+    ofstream out{var_mse_file};
+    for (auto k = 0; k <= niter; k++)
+      out << k << " " << res.error_fourth[k] - res.error_square[k]*res.error_square[k] << endl;
   }
 
   if (modes & MSE)

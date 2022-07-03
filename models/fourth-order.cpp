@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include <math.h>
+#include <complex>
 #include <stdexcept>
 #include <symengine/expression.h>
 #include <symengine/functions.h>
@@ -63,6 +64,25 @@ int largest_eigen_value(const RowSparseMatrix *m, int ncv, int iterations, doubl
   return (int)info;
 }
 
+
+pair<complex<double>, complex<double>>
+baskara(double a, double b, double c) {
+  complex<double> delta = b*b - 4*a*c;
+  return make_pair(-b - sqrt(delta), -b + sqrt(delta));
+}
+
+double
+max_eigenvalue_square_matrix_size_two(NumMatrix::NumMatrix<double> &num) {
+  assert(num.nrows() == 2);
+  assert(num.ncols() == 2);
+
+  double a = num.get(0,0), b = num.get(0,1);
+  double c = num.get(1,0), d = num.get(1,1);
+
+  auto [f,s] = baskara(1, -(d + a), a*d - b*c);
+  return max(abs(f), abs(s));
+}
+
 double largest_step_size(Experiment todo, double lo, double hi, double precision) {
 
   const auto beta = symbol("β");
@@ -75,6 +95,8 @@ double largest_step_size(Experiment todo, double lo, double hi, double precision
     double max_eigen;
     if (m == 1 and n == 1) {
       max_eigen = numA[0][0];
+    } else if (m == 2 and n == 2){
+      max_eigen = max_eigenvalue_square_matrix_size_two(numA);
     } else {
       RowSparseMatrix sm(m, n);
       for (int i = 0; i < m; i++)

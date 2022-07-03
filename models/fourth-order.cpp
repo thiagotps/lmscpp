@@ -68,7 +68,7 @@ int largest_eigen_value(const RowSparseMatrix *m, int ncv, int iterations, doubl
 pair<complex<double>, complex<double>>
 baskara(double a, double b, double c) {
   complex<double> delta = b*b - 4*a*c;
-  return make_pair(-b - sqrt(delta), -b + sqrt(delta));
+  return make_pair((-b - sqrt(delta))/(2*a), (-b + sqrt(delta))/(2*a));
 }
 
 double

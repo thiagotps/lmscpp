@@ -177,7 +177,25 @@ enum outmode
    FOUR,
    MSD,
    VAR_MSD,
+   VAR_MSE,
   };
+
+static const map<string, outmode> outmode_choices {{"sk", outmode::SK},
+                                            {"mse", outmode::MSE},
+                                            {"four", outmode::FOUR},
+                                            {"msd", outmode::MSD},
+                                            {"var-msd", outmode::VAR_MSD},
+                                            {"var-mse", outmode::VAR_MSE}};
+string build_outmode_help_str() {
+  string s = "";
+  auto it = outmode_choices.begin();
+  s += it->first;
+  it++;
+  for (; it != outmode_choices.end(); it++)
+    s += ", " + it->first;
+
+  return s;
+}
 
 enum distmode
   {
@@ -232,16 +250,11 @@ int main(int argc, char ** argv)
               return it->second;
             });
 
-  program.add_argument("--outmode").help("sk, mse or four").required()
+  program.add_argument("--outmode").help(build_outmode_help_str()).required()
     .action([](const string &val)
             {
-              static const map<string, outmode> choices {{"sk", outmode::SK},
-                                                         {"mse", outmode::MSE},
-                                                         {"four", outmode::FOUR},
-                                                         {"msd", outmode::MSD},
-                                                         {"var-msd", outmode::VAR_MSD}};
-              auto it = choices.find(val);
-              if (it == choices.end())
+              auto it = outmode_choices.find(val);
+              if (it == outmode_choices.end())
                 throw runtime_error{"Invalid value for --outmode"};
 
               return it->second;
@@ -452,7 +465,7 @@ int main(int argc, char ** argv)
                                   return null;
                                  }};
 
-  RCP<const Basic> mse_expanded{null}, msd_expanded{null}, var_msd_expanded{null};
+  RCP<const Basic> mse_expanded{null}, var_mse_expanded{null}, msd_expanded{null}, var_msd_expanded{null};
   vec_func seeds{};
 
   if (out_mode == outmode::SK)
@@ -467,6 +480,13 @@ int main(int argc, char ** argv)
       mse_expanded = E.expand(ee);
       seeds = states_vars(mse_expanded);
     }
+  else if (out_mode == outmode::VAR_MSE) {
+    auto e = inn + v(k);
+    auto a = E.expand(rcp_dynamic_cast<const FunctionSymbol>(E(expand(pow(e, 4_i)))));
+    auto b = E.expand(rcp_dynamic_cast<const FunctionSymbol>(E(expand(pow(e, 2_i)))));
+    var_mse_expanded = a - b*b;
+    seeds = states_vars(var_mse_expanded);
+  }
   else if (out_mode == outmode::FOUR)
     seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(E(pow(wtil[0](k), 4_i))));
   else if (out_mode == outmode::MSD) {
@@ -511,6 +531,11 @@ int main(int argc, char ** argv)
           todo.write_expression(niter, mse_expanded, os);
           duration.show("todo.write_expression()");
         }
+      else if (out_mode == outmode::VAR_MSE) {
+          duration.reset();
+          todo.write_expression(niter, var_mse_expanded, os);
+          duration.show("todo.write_expression()");
+      }
       else if (out_mode == outmode::FOUR) {
         duration.reset();
         todo.write_expression(niter, rcp_dynamic_cast<const FunctionSymbol>(E(pow(wtil[0](k), 4_i))), os);

@@ -464,6 +464,47 @@ namespace stochastic{
   }
 
 
+  void Experiment::write_moments(int niter, vector<RCP<const Basic>> &moments,ofstream & os) const
+  {
+    using namespace OverloadedOperators;
+
+    vector indices(moments.size(), -1);
+
+    {
+      for (auto j = 0; j < moments.size(); j++) {
+        for (auto i = 0; i < Yk_.nrows(); i++) {
+          if (eq(*Yk_.get(i, 0), *moments[j])) {
+            indices[j] = i;
+          }
+        }
+      }
+
+      for (auto e: indices) {
+        if (e == -1)
+          throw runtime_error{"It was not possible to find all moments in the state variable matrix"};
+      }
+    }
+
+
+    os << "idx";
+    for (int j = 0; j < moments.size(); j++)
+      os << ",m" << j;
+    os << endl;
+
+    num_stv_iter numstv{get_num_A(),get_num_B(), get_num_Y0()};
+    for (int idx{0}; idx < niter; ++idx)
+      {
+        auto yk = *numstv;
+        os << idx;
+        for (int j = 0; j < moments.size(); j++) {
+           os << "," << yk.get(indices[j], 0);
+        }
+        os << endl;
+
+        ++numstv;
+      }
+  }
+
 
   void Experiment::write_expression(int niter,RCP<const Basic> expr, ofstream & os) const
   {

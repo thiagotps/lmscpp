@@ -178,6 +178,7 @@ enum outmode
    MSD,
    VAR_MSD,
    VAR_MSE,
+   MOMENT,
   };
 
 static const map<string, outmode> outmode_choices {{"sk", outmode::SK},
@@ -185,7 +186,8 @@ static const map<string, outmode> outmode_choices {{"sk", outmode::SK},
                                             {"four", outmode::FOUR},
                                             {"msd", outmode::MSD},
                                             {"var-msd", outmode::VAR_MSD},
-                                            {"var-mse", outmode::VAR_MSE}};
+                                            {"var-mse", outmode::VAR_MSE},
+                                            {"moment", outmode::MOMENT}};
 string build_outmode_help_str() {
   string s = "";
   auto it = outmode_choices.begin();
@@ -307,6 +309,10 @@ int main(int argc, char ** argv)
     .implicit_value(true)
     .default_value(false);
 
+  program.add_argument("--moment").help("The filters' moment to output when using the moment option in --outmode").default_value(-1)
+    .action([](const string &val){return stoi(val);});
+
+
   try {
     program.parse_args(argc, argv);
   } catch (const runtime_error &err) {
@@ -331,11 +337,15 @@ int main(int argc, char ** argv)
   const auto compute_max_beta = program.get<bool>("--compute-max-beta");
   const auto precision = pow(10, -program.get<int>("--precision"));
   const auto upper_beta = program.get<double>("--upper-beta");
+  const auto moment = program.get<int>("--moment");
 
 
-  if (not ofilename.empty())
+  if (not ofilename.empty()) {
     if (beta < 0 or sigmav2 < 0 or niter < 0 or dist_mode == distmode::UNSPECIFIED)
       throw runtime_error{"Missing some of the following: --beta, --sv2, --niter, --dist "};
+    else if (out_mode == outmode::MOMENT and moment < 0)
+      throw runtime_error{"Missing --moment, although --outmode moment was specified."};
+  }
 
 
 
@@ -503,6 +513,10 @@ int main(int argc, char ** argv)
     seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(a));
     seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(b));
     var_msd_expanded = a - b*b;
+  } else if (out_mode == outmode::MOMENT) {
+    for (int j = 0; j < N; j++) {
+      seeds.push_back(rcp_dynamic_cast<const FunctionSymbol>(E(pow(wtil[j](k), integer(moment)))));
+    }
   }
 
 
@@ -550,6 +564,15 @@ int main(int argc, char ** argv)
         duration.reset();
         todo.write_expression(niter, var_msd_expanded, os);
         duration.show("todo.write_expression()");
+      }
+      else if (out_mode == outmode::MOMENT) {
+        duration.reset();
+        vector<RCP<const Basic>> moments(N, null);
+        for (int j = 0; j < N; j++)
+          moments[j] = rcp_dynamic_cast<const FunctionSymbol>(E(pow(wtil[j](k), integer(moment))));
+
+        todo.write_moments(niter, moments, os);
+        duration.show("todo.write_moments()");
       }
     }
 

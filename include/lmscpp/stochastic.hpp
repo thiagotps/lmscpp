@@ -201,6 +201,7 @@ namespace stochastic{
     void write_skewness(int niter,RCP<const Basic> randexpr, ofstream & os) const;
     pair<int, double> skewness_steady_state(RCP<const Basic> randexpr) const;
     void write_expression(int niter,RCP<const Basic> randexpr, ofstream & os) const;
+    void write_moments(int niter, vector<RCP<const Basic>> &moments,ofstream & os) const;
   };
 
 }

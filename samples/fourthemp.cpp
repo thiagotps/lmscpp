@@ -100,7 +100,7 @@ struct experiment
   const int pdf_instant;
   const double pdf_start, pdf_end;
   const int pdf_samples, kernel_exp;
-  const bool pdf_square;
+  const int pdf_moment, pdf_coeficient;
 
   inline double normal_pdf(double x, double mean) const
   {
@@ -219,7 +219,11 @@ struct experiment
                 for (auto n = 0; n <= pdf_samples; n++)
                   {
                     double x {pdf_start + n*delta};
-                    rs.pdf[n] += normal_pdf(x,  pdf_square ? wtilk.at(0)*wtilk.at(0) : wtilk.at(0) );
+                    double wtilk_i_nth = wtilk.at(pdf_coeficient);
+                    for (int cnt = 2; cnt <= pdf_moment; cnt++)
+                      wtilk_i_nth *= wtilk.at(pdf_coeficient);
+
+                    rs.pdf[n] += normal_pdf(x, wtilk_i_nth);
                   }
               }
 
@@ -345,10 +349,15 @@ int main(int argc, char ** argv) {
     .default_value(-7)
     .action([](const string& val){return stoi(val);});
 
-  program.add_argument("--pdf-square")
-    .help("Return the PDF of the square.")
-    .default_value(false)
-    .implicit_value(true);
+  program.add_argument("--pdf-moment")
+    .help("Return the PDF of the nth moment.")
+    .default_value(1)
+    .action([](const string& val){return stoi(val);});
+
+  program.add_argument("--pdf-coeficient")
+    .help("Return the PDF of the this coeficient.")
+    .default_value(0)
+    .action([](const string& val){return stoi(val);});
 
   program.add_argument("--pdf-file")
     .help("The file where the PDF's evolution of the first filter coefficient at a determined instant k will be stored.")
@@ -400,7 +409,14 @@ int main(int argc, char ** argv) {
   const auto pdf_end = program.get<double>("--pdf-end");
   const auto pdf_samples = program.get<int>("--pdf-samples");
   const auto kernel_exp = program.get<int>("--kernel-exp");
-  const auto pdf_square = program.get<bool>("--pdf-square");
+  const auto pdf_moment = program.get<int>("--pdf-moment");
+  const auto pdf_coeficient = program.get<int>("--pdf-coeficient");
+
+  if (pdf_coeficient >= N) {
+    cerr << "--pdf_coeficient must be less than the length of the filter" << endl;
+    return 1;
+  }
+
   uint16_t modes{0};
   if (not skewness_file.empty())
     modes |= SKEWNESS;
@@ -429,7 +445,7 @@ int main(int argc, char ** argv) {
     .sigmav = sigmav, .modes = modes, .dist = dist,
     .pdf_instant = pdf_instant, .pdf_start = pdf_start, .pdf_end = pdf_end,
     .pdf_samples = pdf_samples, .kernel_exp = kernel_exp,
-    .pdf_square = pdf_square};
+    .pdf_moment = pdf_moment, .pdf_coeficient = pdf_coeficient};
 
   auto q{nsamples/NCPU};
   auto r{nsamples % NCPU};
